@@ -106,9 +106,9 @@
 ** =no-littering= package & clean up =~/.emacs.d/=
 #+begin_src emacs-lisp :tangle "init.el"
   (use-package no-littering
-    :demand t
+    :demand tq
     :config
-    (require 'no-littering-bundle))
+    (require 'no-littering))
 
   (use-package recentf
     :ensure nil
@@ -170,10 +170,10 @@
     (setq dashboard-display-icons-p t)     ; display icons on both GUI and terminal
     (setq dashboard-icon-type 'nerd-icons) ; use `nerd-icons' package
 
-    (setq dashboard-startup-banner "~/.emacs.d/marcus no bg.png")
+    (setq dashboard-startup-banner "~/.emacs.d/etc/marcus no bg.png")
     (setq dashboard-image-banner-max-width 500)    ; narrower
     (setq dashboard-image-banner-max-height 500)   ; shorter
-    (setq dashboard-banner-logo-title "If it's endurable, then endure it. Stop complaining.")   ;; ← your welcome text
+    (setq dashboard-banner-logo-title "If it's endurable, then endure it. \n Stop complaining.")
     (setq dashboard-center-content t)
     (setq dashboard-vertically-center-content t)
 
@@ -228,18 +228,6 @@
     :demand t
     :hook
     (dired-mode . nerd-icons-dired-mode))
-#+end_src
-
-** file redirections
-*** redirect auto-generated customization code to its own file
-#+begin_src emacs-lisp :tangle "init.el"
-  (setq custom-file (locate-user-emacs-file "custom.el"))
-  (load custom-file :no-error-if-file-is-missing)
-#+end_src
-
-*** save backup files in their own directory
-#+begin_src emacs-lisp :tangle "init.el"
-  (setq backup-directory-alist `(("." . ,(concat user-emacs-directory "backups/"))))
 #+end_src
 
 ** package manager setup
