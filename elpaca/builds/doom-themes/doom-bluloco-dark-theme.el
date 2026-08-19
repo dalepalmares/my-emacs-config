@@ -1,0 +1,1 @@
+/Users/dale/.emacs.d/elpaca/sources/themes/themes/doom-bluloco-dark-theme.el

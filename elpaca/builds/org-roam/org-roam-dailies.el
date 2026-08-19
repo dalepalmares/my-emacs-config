@@ -1,0 +1,1 @@
+/Users/dale/.emacs.d/elpaca/sources/org-roam/extensions/org-roam-dailies.el

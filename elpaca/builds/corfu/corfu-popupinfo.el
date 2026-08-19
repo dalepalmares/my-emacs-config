@@ -1,0 +1,1 @@
+/Users/dale/.emacs.d/elpaca/sources/corfu/extensions/corfu-popupinfo.el

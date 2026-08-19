@@ -1,0 +1,1 @@
+/Users/dale/.emacs.d/elpaca/sources/vertico/extensions/vertico-indexed.el

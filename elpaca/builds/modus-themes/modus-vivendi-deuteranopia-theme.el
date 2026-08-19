@@ -1,0 +1,1 @@
+/Users/dale/.emacs.d/elpaca/sources/modus-themes/modus-vivendi-deuteranopia-theme.el

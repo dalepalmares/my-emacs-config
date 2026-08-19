@@ -1,0 +1,27 @@
+# OS-specific clutter
+.DS_Store
+
+# Emacs backups and auto-saves
+*~
+\#*\#
+.\#*
+
+# Package managers and native compilation caches
+elpa/
+straight/
+eln-cache/
+.emacs.desktop
+.emacs.desktop.lock
+
+# History, state, and runtime variables (if not using no-littering)
+recentf.eld
+tramp
+places
+url/
+auto-save-list/
+var/
+etc/
+
+# Org-Roam database files (Do not upload your SQLite DB)
+*.db
+org-roam.db
