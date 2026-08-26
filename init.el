@@ -144,7 +144,9 @@
 ;;; require all the .el files from daley-emacs-modules/
 (require 'daley-emacs-essentials)
 (require 'daley-emacs-modeline)
+(require 'daley-emacs-org)
 
 ;;; require all the .el files from daley-lisps/
 (require 'daley-meow)
 (require 'daley-spacious)
+(require 'daley-denote)

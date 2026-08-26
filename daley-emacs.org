@@ -365,10 +365,12 @@ this is where i load all the individual modules and parts of my emacs config.
   ;;; require all the .el files from daley-emacs-modules/
   (require 'daley-emacs-essentials)
   (require 'daley-emacs-modeline)
+  (require 'daley-emacs-org)
 
   ;;; require all the .el files from daley-lisps/
   (require 'daley-meow)
   (require 'daley-spacious)
+  (require 'daley-denote)
 #+end_src
 
 
@@ -378,7 +380,7 @@ custom modules of code that i write myself to tweak or configure emacs in some w
 
 ** =daley-emacs-essentials= module
 
-this module load basic configurations that apply to most facets of emacs.
+this module will load basic configurations that apply to most facets of emacs.
 
 #+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-essentials.el" :mkdirp yes
   ;; -*- lexical-binding: t; -*-
@@ -393,7 +395,7 @@ this module load basic configurations that apply to most facets of emacs.
   (provide 'daley-emacs-essentials)
 #+end_src
 
-*** =daley-emacs-modeline=
+** =daley-emacs-modeline= module
 
 the starting point of my own custom modeline
 
@@ -416,12 +418,50 @@ the starting point of my own custom modeline
   (provide 'daley-emacs-modeline)
 #+end_src
 
+** =daley-emacs-org= module
+
+configs for my org setup. i hope to develop this over time. starting simple at first and just including what i need.
+
+#+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-org.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (use-package org
+    :ensure nil
+    :config
+    (setq org-directory "~/Notes/")
+    (setq org-agenda-files (list org-directory))
+    
+    (setq org-indent-mode t)
+    (setq org-M-RET-may-split-line '((default . nil)))
+    (setq org-insert-heading-respect-content t)
+    (setq org-log-done 'time)
+    (setq org-log-into-drawer t)
+    (setq org-refile-targets
+  	'((nil :maxlevel . 9)
+  	  (org-agenda-files :maxlevel . 9)))
+    (setq org-refile-use-outline-path t)
+
+    ;; disable org-capture & org-refile from generating bookmarks
+    (setq org-capture-bookmark nil)
+    (setq org-bookmark-names-plist nil)
+    
+    (setq org-todo-keywords
+  	'((sequence "TODO(t)" "|" "CANCEL(c!)" "DONE(d!)"))))
+
+  (provide 'daley-emacs-org)
+#+end_src
+
+#+RESULTS:
+: daley-emacs-org
+
 
 * lisps used in my emacs config
 
 configs for various packages that did not come pre-installed with emacs
 
 ** =daley-meow.el= library
+
+my configs for the =meow.el= package. used for modal editing in emacs, akin to kakoune.
 
 #+begin_src emacs-lisp :tangle "daley-lisp/daley-meow.el" :mkdirp yes
   ;; -*- lexical-binding: t; -*-
@@ -514,7 +554,9 @@ configs for various packages that did not come pre-installed with emacs
   (provide 'daley-meow)
 #+end_src
 
-** =daley-spacious-padding.el= library
+** =daley-spacious.el= library
+
+my configs for prot's simple =spacious-padding.el= package. which added space all around the edge of the frame and also when multiple windows are open within emacs. it gives emacs more "breathing room" you could say. 
 
 #+begin_src emacs-lisp :tangle "daley-lisp/daley-spacious.el" :mkdirp yes
   ;; -*- lexical-binding: t; -*-
@@ -535,6 +577,30 @@ configs for various packages that did not come pre-installed with emacs
 
   (provide 'daley-spacious)
 #+end_src
+
+** =daley-denote.el= library
+
+my configs for =denote.el= a file-naming scheme package created by prot, to facilitate better note-taking and organization.
+
+#+begin_src emacs-lisp :tangle "daley-lisp/daley-denote.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (use-package denote
+    :ensure t
+    :hook (dired-mode . denote-dired-mode)
+    :bind
+    (("C-c n n" . denote)
+     ("C-c n r" . denote-rename-file)
+     ("C-c n l" . denote-link)
+     ("C-c n b" . denote-backlinks)
+     ("C-c n d" . denote-dired)
+     ("C-c n g" . denote-grep))
+    :config
+    (setq denote-directory (expand-file-name "~/Notes/")))
+
+  (provide 'daley-denote)
+#+end_src
+
 
 
 * TODO work in progress
