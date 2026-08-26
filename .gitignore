@@ -25,3 +25,9 @@ etc/
 # Org-Roam database files (Do not upload your SQLite DB)
 *.db
 org-roam.db
+
+# Misc
+bookmarks.eld
+history
+splash.png
+tutorial/
