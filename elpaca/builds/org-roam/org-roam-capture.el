@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/org-roam/org-roam-capture.el

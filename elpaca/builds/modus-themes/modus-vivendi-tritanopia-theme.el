@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/modus-themes/modus-vivendi-tritanopia-theme.el

@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/dashboard/dashboard.el

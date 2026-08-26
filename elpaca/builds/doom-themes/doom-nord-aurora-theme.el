@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/themes/themes/doom-nord-aurora-theme.el

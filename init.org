@@ -1,31 +1,66 @@
 #+startup: content indent
 
+this is my attempt at a literate configuration setup with emacs.
+
 * =early-init.el= stuffs
-** lexical binding + package loading shenanigans
+
+this is the first file that emacs reads, things that go here should not depend on any packages.
+
+** =early-init.el= - lexical binding
+
+set up lexical binding
+
 #+begin_src emacs-lisp :tangle "early-init.el"
-  ;;; early-init.el --- Description -*- lexical-binding: t; -*-
-  (setq package-enable-at-startup nil)
+  ;; -*- lexical-binding: t; -*-
 #+end_src
 
-** macos opacity window
+** =early-init.el= - basic frame settings
+
+the /frame-resize-pixelwise/ & /frame-inhibit-implied-resize/ settings are there so that emacs won't resize the frame if you adjust the font size. 
+
 #+begin_src emacs-lisp :tangle "early-init.el"
-  (defun my/apply-frame-transparency (&optional frame)
+  (setq frame-resize-pixelwise t
+        frame-inhibit-implied-resize 'force
+        frame-title-format '("%b")
+        ring-bell-function 'ignore
+        use-file-dialog nil
+        use-short-answers t
+        inhibit-splash-screen t
+        inhibit-startup-screen t
+        inhibit-x-resources t
+        inhibit-startup-echo-area-message t
+        inhibit-startup-buffer-menu t)
+#+end_src
+
+** =early-init.el= - macos opacity window
+
+applying macos glass look for the backgroud, purely for aesthetic reasons.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (defun daley/apply-frame-transparency (&optional frame)
     "Apply macOS transparency parameters to FRAME (defaults to selected frame)."
     (with-selected-frame (or frame (selected-frame))
       (set-frame-parameter nil 'alpha-background 0.7)
       (set-frame-parameter nil 'ns-background-blur 30)
       (set-frame-parameter nil 'ns-alpha-elements '(ns-alpha-all))))
 
-  (add-hook 'after-make-frame-functions #'my/apply-frame-transparency)
+  (add-hook 'after-make-frame-functions #'daley/apply-frame-transparency)
   (unless (daemonp)
-    (add-hook 'window-setup-hook #'my/apply-frame-transparency))
+    (add-hook 'window-setup-hook #'daley/apply-frame-transparency))
 
   (when (display-graphic-p)
-    (my/apply-frame-transparency))
+    (daley/apply-frame-transparency))
 #+end_src
 
-** ui stuffs
+** =early-init.el= - ui stuffs
+
+remove menu bar, tool bar & scroll bar. enforce utf-8 coding. display line numbers to be relative.
+
 #+begin_src emacs-lisp :tangle "early-init.el"
+  (menu-bar-mode -1)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
+
   (set-charset-priority 'unicode)
   (setq locale-coding-system 'utf-8)
   (set-terminal-coding-system 'utf-8)
@@ -33,78 +68,484 @@
   (set-selection-coding-system 'utf-8)
   (prefer-coding-system 'utf-8)
 
-  (setq display-line-numbers-type 'relative)
-  (global-display-line-numbers-mode 1)
+  (setq default-frame-alist
+        (append (list
+  	       '(undecorated-round . t)
+                 '(vertical-scroll-bars . nil))))
 
-  (set-face-attribute 'italic nil :slant 'italic :foreground 'unspecified)
+  ;; (setq display-line-numbers-type 'relative)
+  ;; (global-display-line-numbers-mode 1)
+#+end_src
+
+** =early-init.el= - startup time & garbage collection
+
+i'm not entirely sure what the code here does, but according to prot's config, it should make emacs load faster. i copy/pasted the code straight from his config file.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  ;; Temporarily increase the garbage collection threshold.  These
+  ;; changes help shave off about half a second of startup time.  The
+  ;; `most-positive-fixnum' is DANGEROUS AS A PERMANENT VALUE.  See the
+  ;; `emacs-startup-hook' a few lines below for what I actually use.
+  (setq gc-cons-threshold most-positive-fixnum
+        gc-cons-percentage 0.5)
+
+  ;; Same idea as above for the `file-name-handler-alist' and the
+  ;; `vc-handled-backends' with regard to startup speed optimisation.
+  ;; Here I am storing the default value with the intent of restoring it
+  ;; via the `emacs-startup-hook'.
+  (defvar prot-emacs--file-name-handler-alist file-name-handler-alist)
+  (defvar prot-emacs--vc-handled-backends vc-handled-backends)
+
+  (setq file-name-handler-alist nil
+        vc-handled-backends nil)
+
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq gc-cons-threshold (* 100 100 8)
+                    gc-cons-percentage 0.1
+                    file-name-handler-alist prot-emacs--file-name-handler-alist
+                    vc-handled-backends prot-emacs--vc-handled-backends)))
+#+end_src
+
+** =early-init.el= - initialize package cache
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (setq package-enable-at-startup t)
+#+end_src
+
+** =early-init.el= - set the ~user-lisp-directory~
+
+starting emacs 31 you can set a directory for custom code that emacs will autoload. it will be treated the same way as installed packages.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (setq user-lisp-directory (locate-user-emacs-file "lisp/"))
+#+end_src
+
+** =early-init-el= - name the default frame
+
+the default frame shall hence forth be named =home=. to be used for prot's /beframe/ package.
+
+#+begin_src emacs-lisp :tangle "early-init.el"
+  (add-hook 'after-init-hook (lambda () (set-frame-name "home")))
 #+end_src
 
 
 * =init.el= stuffs
-** lexical binding
+
+the actual config file. load all individual modules here.
+
+** =init.el= - lexical binding
+
+set up lexical binding
+
 #+begin_src emacs-lisp :tangle "init.el"
-  ;;; init.el --- Description -*- lexical-binding: t; -*-
-#+end_src
-** my info
-#+begin_src emacs-lisp :tangle "init.el"
-  (setq user-full-name  "daley"
-      user-mail-address "dalepalmares@gmail.com")
+  ;; -*- lexical-binding: t; -*-
 #+end_src
 
-** bootstraping elpaca
+** =init.el= - disable backups & lockfiles
+
+lockfiles are files that emacs lock down so that they are not modified by other programs.
+backups are backups. i don't need emacs to manage that, i'll manage that externally.
+
 #+begin_src emacs-lisp :tangle "init.el"
-  (defvar elpaca-installer-version 0.12)
-  (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
-  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
-  (defvar elpaca-sources-directory (expand-file-name "sources/" elpaca-directory))
-  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-                                :ref nil :depth 1 :inherit ignore
-                                :files (:defaults "elpaca-test.el" (:exclude "extensions"))
-                                :build (:not elpaca-activate)))
-  (let* ((repo  (expand-file-name "elpaca/" elpaca-sources-directory))
-         (build (expand-file-name "elpaca/" elpaca-builds-directory))
-         (order (cdr elpaca-order))
-         (default-directory repo))
-    (add-to-list 'load-path (if (file-exists-p build) build repo))
-    (unless (file-exists-p repo)
-      (make-directory repo t)
-      (when (<= emacs-major-version 28) (require 'subr-x))
-      (condition-case-unless-debug err
-          (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-                    ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
-                                                    ,@(when-let* ((depth (plist-get order :depth)))
-                                                        (list (format "--depth=%d" depth) "--no-single-branch"))
-                                                    ,(plist-get order :repo) ,repo))))
-                    ((zerop (call-process "git" nil buffer t "checkout"
-                                          (or (plist-get order :ref) "--"))))
-                    (emacs (concat invocation-directory invocation-name))
-                    ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-                                          "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-                    ((require 'elpaca))
-                    ((elpaca-generate-autoloads "elpaca" repo)))
-              (progn (message "%s" (buffer-string)) (kill-buffer buffer))
-            (error "%s" (with-current-buffer buffer (buffer-string))))
-        ((error) (warn "%s" err) (delete-directory repo 'recursive))))
-    (unless (require 'elpaca-autoloads nil t)
-      (require 'elpaca)
-      (elpaca-generate-autoloads "elpaca" repo)
-      (let ((load-source-file-function nil)) (load "./elpaca-autoloads"))))
-  (add-hook 'after-init-hook #'elpaca-process-queues)
-  (elpaca `(,@elpaca-order))
-
-  (elpaca elpaca-use-package
-    (elpaca-use-package-mode))
-
-  (elpaca-wait)
-  
-  (setq use-package-always-defer t
-        use-package-always-ensure t
-        ;; Testing for package timing
-        ;; use-package-compute-statistics t
-        use-package-expand-minimally t)
+  (setq make-backup-files nil)
+  (setq backup-inhibited nil)
+  (setq create-lockfiles nil)
 #+end_src
-** =no-littering= package & clean up =~/.emacs.d/=
+
+** =init.el= - send ~custom-file~ to the abyss
+
+the line of code below will move the emacs-generated /custom-file/ to a =/tmp= folder and exterminate it after you close your computer. prot does not like this file lol.
+
 #+begin_src emacs-lisp :tangle "init.el"
+  (setq custom-file (make-temp-file "emacs-custom-"))
+#+end_src
+
+** =init.el= - setting to always start with the =*scratch*= buffer
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (setq initial-buffer-choice t)
+  (setq initial-major-mode 'lisp-interaction-mode)
+  (setq initial-scratch-message
+        (format ";; This is `%s'.  Type `%s' to evaluate and print results.\n\n"
+                'lisp-interaction-mode
+                (propertize
+                 (substitute-command-keys "\\<lisp-interaction-mode-map>\\[eval-print-last-sexp]")
+                 'face 'help-key-binding)))
+#+end_src
+
+** =init.el= - load path for modules & lisps
+
+there are 2 subdirectories inside =~/.emacs.d/=. =daley-lisp/= & =daley-emacs-modules/=
+
+=daley-emacs-modules/= - this is where my custom configurations live for all the parts of emacs. i am configuring built-in emacs stuff here.
+
+=daley-lisp/= - configs for packages. i am configuring packages that came from outside here.
+
+i am basically trying to be more organized by separating the code i wrote (=daley-emacs-modules/=) from the code that other people wrote (=daley-lisp=)
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (mapc					
+   (lambda (string)
+     (add-to-list 'load-path (locate-user-emacs-file string)))
+   '("daley-lisp" "daley-emacs-modules"))
+#+end_src
+
+** =init.el= - settings for package (=package.el=)
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (require 'package)
+  (package-initialize)
+
+  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
+
+  (when (< emacs-major-version 29)
+    (unless (package-installed-p 'use-package)
+      (unless package-archive-contents
+        (package-refresh-contents))
+      (package-install 'use-package)))
+
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*\\(Warnings\\|Compile-Log\\)\\*\\'"
+                 (display-buffer-no-window)
+                 (allow-no-window . t)))
+#+end_src
+
+** =init.el= - basic behavior
+
+*** =init.el= - basic behavior to delete highlighted text when you type
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package delsel
+    :ensure nil ; no need to install it as it is built-in
+    :hook (after-init . delete-selection-mode))
+#+end_src
+
+*** =init.el= - basic behavior to make C-g a bit more helpful
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (defun daley/keyboard-quit-dwim ()
+    (interactive)
+    (cond
+     ((region-active-p)
+      (keyboard-quit))
+     ((derived-mode-p 'completion-list-mode)
+      (delete-completion-window))
+     ((> (minibuffer-depth) 0)
+      (abort-recursive-edit))
+     (t
+      (keyboard-quit))))
+  (define-key global-map (kbd "C-g") #'daley/keyboard-quit-dwim)
+#+end_src
+
+** =init.el= - use preffered fonts
+
+i am using the aporetic font family from prot here.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (let ((mono-spaced-font "Monospace")
+        (proportionately-spaced-font "Sans"))
+    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
+    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0))
+#+end_src
+
+** =init.el= - set up theme
+
+here i am using the doric themes package. also from prot
+
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package doric-themes
+    :ensure t
+    :demand t
+    :config
+    (setq doric-themes-to-toggle '(doric-earth doric-obsidian))
+
+    (doric-themes-select 'doric-obsidian)
+
+    :bind
+    (("<f5>" . doric-themes-toggle)
+     ("C-<f5>" . doric-themes-select)
+     ("M-<f5>" . doric-themes-rotate)))
+#+end_src
+
+** =init.el= - configure minibuffer
+*** =init.el= - =vertico= package
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package vertico
+    :ensure t
+    :hook (after-init . vertico-mode))
+#+end_src
+
+*** =init.el= - =marginalia= package
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package marginalia
+    :ensure t
+    :hook (after-init . marginalia-mode))
+#+end_src
+
+*** =init.el= - =orderless= package
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package orderless
+    :ensure t
+    :config
+    (setq completion-styles '(orderless basic))
+    (setq completion-category-defaults nil)
+    (setq completion-category-overrides nil))
+#+end_src
+
+*** =init.el= - =savehist= package
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package savehist
+    :ensure nil
+    :hook (after-init . savehist-mode))
+#+end_src
+
+*** =init.el= - =corfu= package
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package corfu
+    :ensure t
+    :hook (after-init . global-corfu-mode)
+    :bind (:map corfu-map ("<tab>" . corfu-complete))
+    :config
+    (setq tab-always-indent 'complete)
+    (setq corfu-preview-current nil)
+    (setq corfu-min-width 20)
+
+    (setq corfu-popupinfo-delay '(1.25 . 0.5))
+    (corfu-popupinfo-mode 1) ; shows documentation after `corfu-popupinfo-delay'
+
+    ;; Sort by input history (no need to modify `corfu-sort-function').
+    (with-eval-after-load 'savehist
+      (corfu-history-mode 1)
+      (add-to-list 'savehist-additional-variables 'corfu-history)))
+#+end_src
+
+** =init.el= - dired file manager stuffs
+#+begin_src emacs-lisp :tangle "init.el"
+  (use-package dired
+    :ensure nil
+    :commands (dired)
+    :hook
+    ((dired-mode . dired-hide-details-mode)
+     (dired-mode . hl-line-mode))
+    :config
+    (setq dired-recursive-copies 'always)
+    (setq dired-recursive-deletes 'always)
+    (setq delete-by-moving-to-trash t)
+    (setq dired-dwim-target t))
+
+  (use-package dired-subtree
+    :ensure t
+    :after dired
+    :bind
+    ( :map dired-mode-map
+      ("<tab>" . dired-subtree-toggle)
+      ("TAB" . dired-subtree-toggle)
+      ("<backtab>" . dired-subtree-remove)
+      ("S-TAB" . dired-subtree-remove))
+    :config
+    (setq dired-subtree-use-backgrounds nil))
+
+  (use-package trashed
+    :ensure t
+    :commands (trashed)
+    :config
+    (setq trashed-action-confirmer 'y-or-n-p)
+    (setq trashed-use-header-line t)
+    (setq trashed-sort-key '("Date deleted" . t))
+    (setq trashed-date-format "%Y-%m-%d %H:%M:%S"))
+#+end_src
+
+** =init.el= - load all individual modules here
+
+this is where i load all the individual modules and parts of my emacs config.
+
+#+begin_src emacs-lisp :tangle "init.el"
+  ;;; require all the .el files from daley-emacs-modules/
+  (require 'daley-emacs-essentials)
+  (require 'daley-emacs-modeline)
+
+  ;;; require all the .el files from daley-lisps/
+  (require 'daley-meow)
+  (require 'daley-spacious)
+#+end_src
+
+
+* modules used in my emacs config
+
+custom modules of code that i write myself to tweak or configure emacs in some way shape or form
+
+** =daley-emacs-essentials= module
+
+this module load basic configurations that apply to most facets of emacs.
+
+#+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-essentials.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  ;; display date and time
+  (setq display-time-format "%a %e %b, %H:%M")
+  (setq display-time-interval 60)
+  (setq display-time-default-load-average nil)
+
+  (display-time-mode 1)
+
+  (provide 'daley-emacs-essentials)
+#+end_src
+
+*** =daley-emacs-modeline=
+
+the starting point of my own custom modeline
+
+#+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-modeline.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (defvar-local daley-modeline-misc-info
+    '(:eval
+      (when (mode-line-window-selected-p)
+        mode-line-misc-info)))
+
+  (put 'daley-modeline-misc-info 'risky-local-variable t)
+
+  (setq-default mode-line-format
+  	      '("%e"
+  		" %* | %b " ; this is the info shown on the left hand side of the modeline
+  		mode-line-format-right-align ; push all items below this line to the most right hand side of the modeline
+  		daley-modeline-misc-info)) ; show date & time (which is push to the farthest right as a result of the line directly above)
+
+  (provide 'daley-emacs-modeline)
+#+end_src
+
+
+* lisps used in my emacs config
+
+configs for various packages that did not come pre-installed with emacs
+
+** =daley-meow.el= library
+
+#+begin_src emacs-lisp :tangle "daley-lisp/daley-meow.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (defun meow-setup ()
+    (setq meow-cheatsheet-layout meow-cheatsheet-layout-colemak)
+    (meow-motion-define-key
+     ;; Use e to move up, n to move down.
+     ;; Since special modes usually use n to move down, we only overwrite e here.
+     '("e" . meow-prev)
+     '("<escape>" . ignore))
+    (meow-leader-define-key
+     '("?" . meow-cheatsheet)
+     '("1" . meow-digit-argument)
+     '("2" . meow-digit-argument)
+     '("3" . meow-digit-argument)
+     '("4" . meow-digit-argument)
+     '("5" . meow-digit-argument)
+     '("6" . meow-digit-argument)
+     '("7" . meow-digit-argument)
+     '("8" . meow-digit-argument)
+     '("9" . meow-digit-argument)
+     '("0" . meow-digit-argument))
+    (meow-normal-define-key
+     '("0" . meow-expand-0)
+     '("1" . meow-expand-1)
+     '("2" . meow-expand-2)
+     '("3" . meow-expand-3)
+     '("4" . meow-expand-4)
+     '("5" . meow-expand-5)
+     '("6" . meow-expand-6)
+     '("7" . meow-expand-7)
+     '("8" . meow-expand-8)
+     '("9" . meow-expand-9)
+     '("-" . negative-argument)
+     '(";" . meow-reverse)
+     '("," . meow-inner-of-thing)
+     '("." . meow-bounds-of-thing)
+     '("[" . meow-beginning-of-thing)
+     '("]" . meow-end-of-thing)
+     '("/" . meow-visit)
+     '("a" . meow-append)
+     '("A" . meow-open-below)
+     '("b" . meow-back-word)
+     '("B" . meow-back-symbol)
+     '("c" . meow-change)
+     '("e" . meow-prev)
+     '("E" . meow-prev-expand)
+     '("f" . meow-find)
+     '("g" . meow-cancel-selection)
+     '("G" . meow-grab)
+     '("h" . meow-left)
+     '("H" . meow-left-expand)
+     '("i" . meow-right)
+     '("I" . meow-right-expand)
+     '("j" . meow-join)
+     '("k" . meow-kill)
+     '("l" . meow-line)
+     '("L" . meow-goto-line)
+     '("m" . meow-mark-word)
+     '("M" . meow-mark-symbol)
+     '("n" . meow-next)
+     '("N" . meow-next-expand)
+     '("o" . meow-block)
+     '("O" . meow-to-block)
+     '("p" . meow-yank)
+     '("q" . meow-quit)
+     '("r" . meow-replace)
+     '("s" . meow-insert)
+     '("S" . meow-open-above)
+     '("t" . meow-till)
+     '("u" . meow-undo)
+     '("U" . meow-undo-in-selection)
+     '("v" . meow-search)
+     '("w" . meow-next-word)
+     '("W" . meow-next-symbol)
+     '("x" . meow-delete)
+     '("X" . meow-backward-delete)
+     '("y" . meow-save)
+     '("z" . meow-pop-selection)
+     '("'" . repeat)
+     '("<escape>" . ignore)))
+
+  (use-package meow
+    :ensure t
+    :config
+    (meow-setup)
+    (meow-global-mode 1))
+
+  (provide 'daley-meow)
+#+end_src
+
+** =daley-spacious-padding.el= library
+
+#+begin_src emacs-lisp :tangle "daley-lisp/daley-spacious.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (use-package spacious-padding
+    :ensure t
+    :config
+    (setq spacious-padding-widths
+  	'( :internal-border-width 24
+  	   :header-line-width 4
+  	   :mode-line-width 6
+             :tab-width 4
+             :right-divider-width 10
+             :fringe-width 24))
+    (setq spacious-padding-subtle-frame-lines t))
+
+  (spacious-padding-mode 1)
+
+  (provide 'daley-spacious)
+#+end_src
+
+
+* TODO work in progress
+** =init.el= - =no-littering= package & clean up =~/.emacs.d/=
+:PROPERTIES:
+:CUSTOM_ID: h-E5987F40-1EE3-4CD4-BD98-62FD883548A5
+:END:
+
+initialize the =no-littering= package to remove any unnecessary clutter inside the /~/.emacs.d// directory 
+
+#+begin_src emacs-lisp
   (use-package no-littering
     :demand tq
     :config
@@ -114,104 +555,229 @@
     :ensure nil
     :after no-littering
     :config
-  (recentf-mode 1))
-
-  (elpaca-wait)
+    (recentf-mode 1))
 #+end_src
 
-** tweak emacs looks
-*** =nano-emacs= stuffs
-#+begin_src emacs-lisp :tangle "init.el"
-  (add-to-list 'load-path "~/.emacs.d/lisp/nano-emacs")
+** org mode stuffs
+*** set org directory
 
-  (require 'nano-faces)
+#+begin_src emacs-lisp
+  (setq org-directory "~/notes/org/")
 
-  (require 'nano-theme)
-  (require 'nano-theme-dark)
-  (require 'nano-theme-light)
-  (nano-theme-set-dark)
-
-  (setq nano-font-family-monospaced "Maple Mono NF")
-  (setq nano-font-family-proportional "Atkinson Hyperlegible")
-  (setq nano-font-size 24)
-
-  (nano-refresh-theme)
-
-  (require 'nano-modeline)
-  (nano-modeline)
-
-  (require 'nano-layout)
-
-  (add-to-list 'default-frame-alist '(undecorated-round . t))
-    (add-to-list 'default-frame-alist '(ns-background-blur . 40))
-    (add-to-list 'default-frame-alist '(ns-alpha-elements ns-alpha-all))
-
-  (dolist (frame (frame-list))
-    (set-frame-parameter frame 'undecorated-round t)
-    (set-frame-parameter frame 'ns-alpha-elements 'ns-alpha-all)
-    (set-frame-parameter frame 'ns-background-blur 40))
-
-  (menu-bar-mode 0)
-  (tool-bar-mode 0)
-  (scroll-bar-mode 0)
+  (setq org-structure-template-alist
+        '(("s" . "src")
+          ("e" . "src emacs-lisp")
+          ("E" . "src emacs-lisp :results value code :lexical t")
+          ("t" . "src emacs-lisp :tangle FILENAME")
+          ("T" . "src emacs-lisp :tangle FILENAME :mkdirp yes")
+          ("x" . "example")
+          ("X" . "export")
+          ("q" . "quote")))
 #+end_src
 
-*** dashboard
-#+begin_src emacs-lisp :tangle "init.el"
-    (use-package dashboard
-    :elpaca t
+*** org custom_id
+
+#+begin_src emacs-lisp
+  (require 'org-id)
+  (setq org-id-link-to-org-use-id 'create-if-interactive-and-no-custom-id)
+
+  (defun d--org-custom-id-get (&optional pom create prefix)
+    "Get the CUSTOM_ID property of the entry at point-or-marker POM.
+       If POM is nil, refer to the entry at point. If the entry does
+       not have an CUSTOM_ID, the function returns nil. However, when
+       CREATE is non nil, create a CUSTOM_ID if none is present
+       already. PREFIX will be passed through to `org-id-new'. In any
+       case, the CUSTOM_ID of the entry is returned."
+    (interactive)
+    (org-with-point-at pom
+      (let ((id (org-entry-get nil "CUSTOM_ID")))
+        (cond
+         ((and id (stringp id) (string-match "\\S-" id))
+          id)
+         (create
+          (setq id (org-id-new (concat prefix "h")))
+          (org-entry-put pom "CUSTOM_ID" id)
+          (org-id-add-location id (buffer-file-name (buffer-base-buffer)))
+          id)))))
+
+  (defun d--org-add-ids-to-headlines-in-file ()
+    "Add CUSTOM_ID properties to all headlines in the
+     current file which do not already have one."
+    (interactive)
+    (org-map-entries (lambda () (d--org-custom-id-get (point) 'create))))
+
+  (defun org-id-new (&optional prefix)
+    "Create a new globally unique ID.
+
+  An ID consists of two parts separated by a colon:
+  - a prefix
+  - a unique part that will be created according to `org-id-method'.
+
+  PREFIX can specify the prefix, the default is given by the variable
+  `org-id-prefix'.  However, if PREFIX is the symbol `none', don't use any
+  prefix even if `org-id-prefix' specifies one.
+
+  So a typical ID could look like \"Org-4nd91V40HI\"."
+    (let* ((prefix (if (eq prefix 'none)
+                       ""
+                     (concat (or prefix org-id-prefix) "-")))
+           unique)
+      (if (equal prefix "-") (setq prefix ""))
+      (cond
+       ((memq org-id-method '(uuidgen uuid))
+        (setq unique (org-trim (shell-command-to-string org-id-uuid-program)))
+        (unless (org-uuidgen-p unique)
+          (setq unique (org-id-uuid))))
+       ((eq org-id-method 'org)
+        (let* ((etime (org-reverse-string (org-id-time-to-b36)))
+               (postfix (if org-id-include-domain
+                            (progn
+                              (require 'message)
+                              (concat "@" (message-make-fqdn))))))
+          (setq unique (concat etime postfix))))
+       (t (error "Invalid `org-id-method'")))
+      (concat prefix unique)))
+#+end_src
+
+*** =org-roam= package
+
+#+begin_src emacs-lisp
+  (use-package org-roam
+    :ensure t
+    :hook (org-mode . org-roam-db-autosync-mode)
+    :commands (org-roam-node-find
+               org-roam-node-insert
+               org-roam-dailies-goto-today
+               org-roam-buffer-toggle
+               org-roam-db-sync
+               org-roam-capture)
+    :init
+    (setq org-roam-directory "~/notes/roam"
+  	    org-roam-database-connector 'sqlite-builtin
+  	    org-roam-completion-everywhere t
+  	    org-roam-db-location (expand-file-name "org-roam.db" "~/notes/roam")
+  	    org-roam-v2-ack t)
     :config
-    (add-hook 'elpaca-after-init-hook #'dashboard-insert-startupify-lists)
-    (add-hook 'elpaca-after-init-hook #'dashboard-initialize)
-    (dashboard-setup-startup-hook))
-
-    (setq initial-buffer-choice 'dashboard-open)
-
-    (setq dashboard-display-icons-p t)     ; display icons on both GUI and terminal
-    (setq dashboard-icon-type 'nerd-icons) ; use `nerd-icons' package
-
-    (setq dashboard-startup-banner "~/.emacs.d/etc/marcus no bg.png")
-    (setq dashboard-image-banner-max-width 500)    ; narrower
-    (setq dashboard-image-banner-max-height 500)   ; shorter
-    (setq dashboard-banner-logo-title "If it's endurable, then endure it. \n Stop complaining.")
-    (setq dashboard-center-content t)
-    (setq dashboard-vertically-center-content t)
-
-    ;; show ONLY the image + welcome text:
-    (setq dashboard-startupify-list
-          '(dashboard-insert-banner
-            dashboard-insert-newline
-            dashboard-insert-banner-title
-            dashboard-insert-newline))
-    (setq dashboard-items nil)
-    (setq dashboard-set-footer nil)
-    (setq dashboard-show-shortcuts nil)
-
-  (defun my/dashboard-hide-header-line ()
-    "Hide nano's header-line modeline on the dashboard buffer."
-    (when (derived-mode-p 'dashboard-mode)
-      (setq-local mode-line-format nil)
-      (set-window-parameter nil 'mode-line-format nil)
-      (setq-local header-line-format nil)))
-
-  (add-hook 'dashboard-mode-hook #'my/dashboard-hide-header-line)
-  (add-hook 'dashboard-after-initialize-hook #'my/dashboard-hide-header-line)
+    (setq org-roam-db-update-on-save t))
 #+end_src
 
-*** cursor stuffs
-#+begin_src emacs-lisp :tangle "init.el"
-  ;; change shape so it's that fat rectangle
-  (setq cursor-type 'bar)
+*** =org-modern= package
 
-  ;; beacon mode, to light the way and help you find your cursor
-  (use-package beacon
-  :demand t
-  :config
-  (beacon-mode 1))
+#+begin_src emacs-lisp
+  (use-package org-modern
+    :ensure t
+    :custom
+    (org-modern-hide-stars 'leading)
+    (org-modern-table nil)
+    (org-modern-list '((?* . "•") (?+ . "‣")))
+    (org-modern-star '("◉" "○" "✸" "✿" "✤" "✜"))
+    :hook
+    (org-mode . org-modern-mode)
+    (org-agenda-finalize . org-modern-agenda)
+    :config
+    (global-org-modern-mode))
+
+  (add-hook 'after-load-theme-hook
+            (lambda () (when (bound-and-true-p org-modern-mode)
+                         (font-lock-flush))))
+
+  (use-package org-modern-indent
+    :ensure (:host github :repo "jdtsmith/org-modern-indent")
+    :custom
+    (org-startup-indented t)
+    :init
+    ;; Append to the hook late (priority 90) to ensure it executes after native styling
+    (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
+
+  (defun my/org-hide-follow-background ()
+    (set-face-attribute 'org-hide nil
+  		              :foreground (face-background 'default nil t)))
+  (add-hook 'nano-refresh-theme-hook #'my/org-hide-follow-background)
 #+end_src
 
-*** nerd icons
-#+begin_src emacs-lisp :tangle "init.el"
+** =nano= library
+
+NANO WILL BE REMOVED AT SOME POINT. ONCE I FIGURE OUT HOW TO DO THINGS ON MY OWN.
+
+i like the look of nano, but i don't need all of it's functionality.
+
+so i'll take code from =nano-emacs= and tweak it to my liking. i take what i want from the package and run the appropriate code here. just as the author intended
+
+the code below is where i'll control all of =nano=. the separate modules will live in their own /.el/ 
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'nano-layout) ; the default nano layout
+  (require 'nano-themes) ; themes set up for nano
+
+  ;; conditionally set the theme based on cmd flags
+  (cond
+   ((member "-default" command-line-args) t)
+   ((member "-light" command-line-args) (nano-theme-set-light))
+   (t (nano-theme-set-dark)))
+  (call-interactively 'nano-refresh-theme)
+
+  (require 'nano-defaults) ; require the nano-defulats.el file
+  (require 'nano-session)  ; require the nano-session.el file
+  (require 'nano-modeline) ; require the nano-modeline.el file
+
+  ;; welcome message
+  (let ((inhibit-message t))
+    (message "Welcome to GNU Emacs / N Λ N O edition")
+    (message (format "Initialization time: %s" (emacs-init-time))))
+
+  ;; splash screen
+  (require 'nano-splash)
+
+  (provide 'nano)				   
+#+end_src
+
+*** =nano= - the layout
+
+here i customize the default layout that comes with =nano-emacs= and tweak it to my preference.
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'disp-table)
+
+  ;; achieve native rounded corners, background blur and the padding all around. 
+  (setq default-frame-alist
+        (append (list
+  	           '(undecorated-round . t)
+  	           '(ns-background-blur . 40)
+  	           '(ns-alpha-elements ns-alpha-all)
+                 '(vertical-scroll-bars . nil)
+                 '(internal-border-width . 24)
+                 '(left-fringe . 1)
+                 '(right-fringe . 1))))
+
+  ;; change cursor shape so it's that thin rectangle
+  (setq cursor-type '(bar . 2))
+  (add-to-list 'default-frame-alist '(cursor-type . (bar . 2)))
+
+  ;; remove startup clutter
+  (setq ;; inhibit-startup-screen t
+        ;; inhibit-startup-message t
+        ;; inhibit-startup-echo-area-message t
+        initial-scratch-message nil)
+
+  ;; underline sits at next decent
+  (setq x-underline-at-descent-line t) 
+
+  ;; adds a 24px ap between split windows inside emacs
+  (setq window-divider-default-right-width 24)
+  ;; (setq window-divider-default-places 'right-only)
+  (window-divider-mode 1)
+
+  ;; no ugly button for checkboxes
+  (setq widget-image-enable nil)
+
+  ;; hide org markup
+  ;; (setq org-hide-emphasis-markers t)
+
+  ;; set up to use nerd icons across emacs
   (use-package nerd-icons
     :demand t)
   (use-package nerd-icons-completion
@@ -228,184 +794,1949 @@
     :demand t
     :hook
     (dired-mode . nerd-icons-dired-mode))
+
+  (provide 'nano-layout)
 #+end_src
 
-** package manager setup
-*** disable warnings when installing packages
-#+begin_src emacs-lisp :tangle "init.el"
-  (add-to-list 'display-buffer-alist
-             '("\\`\\*\\(Warnings\\|Compile-Log\\)\\*\\'"
-               (display-buffer-no-window)
-               (allow-no-window . t)))
+*** =nano= - the theme
+
+#+begin_src emacs-lisp 
+  ;; -*- lexical-binding: t; -*-
+
+  ;; theming command line options (this will cancel warning messages)
+  (add-to-list 'command-switch-alist '("-dark"   . (lambda (args))))
+  (add-to-list 'command-switch-alist '("-light"  . (lambda (args))))
+  (add-to-list 'command-switch-alist '("-default"  . (lambda (args))))
+  (add-to-list 'command-switch-alist '("-no-splash" . (lambda (args))))
+  (add-to-list 'command-switch-alist '("-no-help" . (lambda (args))))
+  (add-to-list 'command-switch-alist '("-compact" . (lambda (args))))
+
+  (require 'nano-faces)
+  (require 'nano-theme-control)
+  (require 'nano-theme-dark)
+  (require 'nano-theme-light)
+
+  (provide 'nano-themes)
 #+end_src
 
-** basic behavior
-*** delete highlighted text when you type (how is this not turned on by default?)
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package delsel
-  :ensure nil ; no need to install it as it is built-in
-  :hook (after-init . delete-selection-mode))
+**** =nano-themes= - base colors
+
+Defines the 9 basic colors of the nano theme.
+The default values are loaded from well-known faces of Emacs.
+ 
+To change nano's appearance you therefore may:
+- Load any Emacs theme before loading nano to change the appearance
+- Load one of the few nano themes after this file. This will result inactive the best experience.
+- Set your own colors by customizing nano group
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (defgroup nano '()
+    "Faces and colors for the nano emacs theme")
+
+  ;; Derive our default color set from classic Emacs faces.
+  ;; This allows dropping nano components into already themed Emacsen with varying
+  ;; degrees of visual appeal.
+  ;;
+  ;; We memorize the default colorset in this var in order not to confuse
+  ;; customize: the STANDARD argument of defcustom gets re-evaluated by customize
+  ;; to determine if the current value is default or not.
+  (defvar nano-base-colors--defaults
+    `((foreground . ,(face-foreground 'default nil t))
+      (background . ,(face-background 'default nil t))
+      (highlight . ,(face-background 'fringe nil t))
+      (critical . ,(face-foreground 'error nil t))
+      (salient . ,(face-foreground 'font-lock-keyword-face nil t))
+      (strong . ,(face-foreground 'default nil t))
+      (popout . ,(face-foreground 'font-lock-string-face nil t))
+      (subtle . ,(face-background 'mode-line-inactive nil t))
+      (faded . ,(face-foreground 'shadow nil t))))
+
+  (defun nano-base-colors--get (name)
+    "Get default color associated with symbol NAME."
+    (cdr (assoc name nano-base-colors--defaults)))
+
+  (defcustom nano-color-foreground (nano-base-colors--get 'foreground)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-background (nano-base-colors--get 'background)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-highlight (nano-base-colors--get 'highlight)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-critical (nano-base-colors--get 'critical)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-salient (nano-base-colors--get 'salient)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-strong (nano-base-colors--get 'strong)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-popout (nano-base-colors--get 'popout)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-subtle (nano-base-colors--get 'subtle)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (defcustom nano-color-faded (nano-base-colors--get 'faded)
+    ""
+    :type 'color
+    :group 'nano)
+
+  (provide 'nano-base-colors)
 #+end_src
 
-*** make C-g a bit more helpful
-#+begin_src emacs-lisp :tangle "init.el"
-  (defun prot/keyboard-quit-dwim ()
-  (interactive)
-  (cond
-   ((region-active-p)
-    (keyboard-quit))
-   ((derived-mode-p 'completion-list-mode)
-    (delete-completion-window))
-   ((> (minibuffer-depth) 0)
-    (abort-recursive-edit))
-   (t
-    (keyboard-quit))))
-  (define-key global-map (kbd "C-g") #'prot/keyboard-quit-dwim)
+**** =nano-themes= - faces
+
+This file defines the 6 basic nano faces:
+  
+- nano-face-critical  - nano-face-popout   - nano-face-salient
+- nano-face-default   - nano-face-faded    - nano-face-subtle
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'nano-base-colors)
+
+  (defcustom nano-font-family-monospaced "Maple Mono NF"
+    "Name of the font-family to use for nano.
+    Defaults to Maple Mono NF. Customizing this might lead to conflicts
+    if the family does not have sufficient bold/light etc faces."
+    :group 'nano
+    :type 'string)
+
+  (defcustom nano-font-family-proportional nil
+    "Font to use for variable pitch faces.
+    Setting this allows nano to display variable pitch faces when,
+    for instance, 'variable-pitch-mode' or 'mixed-pitch-mode' is active in a buffer.
+    Defaults to nil."
+    :group 'nano
+    :type 'string)
+
+  (defcustom nano-font-size 24
+    "Default value for the font size of nano-theme in pt units.
+    Note: to change this after startup, call
+    \(nano-faces\) and \(nano-theme\)."
+    :group 'nano
+    :type 'integer)
+
+  ;; A theme is fully defined by these seven faces
+
+  (defface nano-face-default nil
+    "Default face is used for regular information."
+    :group 'nano)
+
+  (defface nano-face-variable-pitch nil
+    "Default variable-pitch face is used for variable pitch mode."
+    :group 'nano)
+
+  (defface nano-face-critical nil
+    "Critical face is for information that requires immediate action.
+    It should be of high contrast when compared to other faces. This
+    can be realized (for example) by setting an intense background
+    color, typically a shade of red. It must be used scarcely."
+    :group 'nano)
+
+  (defface nano-face-popout nil
+    "Popout face is used for information that needs attention.
+    To achieve such effect, the hue of the face has to be
+    sufficiently different from other faces such that it attracts
+    attention through the popout effect."
+    :group 'nano)
+
+  (defface nano-face-strong nil
+    "Strong face is used for information of a structural nature.
+    It has to be the same color as the default color and only the
+    weight differs by one level (e.g., light/regular or
+    regular/bold). IT is generally used for titles, keywords,
+    directory, etc."
+    :group 'nano)
+
+  (defface nano-face-salient nil
+    "Salient face is used for information that are important.
+    To suggest the information is of the same nature but important,
+    the face uses a different hue with approximately the same
+    intensity as the default face. This is typically used for links."
+    :group 'nano)
+
+  (defface nano-face-faded nil
+    "Faded face is for information that are less important.
+    It is made by using the same hue as the default but with a lesser
+    intensity than the default. It can be used for comments,
+    secondary information and also replace italic (which is generally
+    abused anyway)."
+    :group 'nano)
+
+  (defface nano-face-subtle nil
+    "Subtle face is used to suggest a physical area on the screen.
+    It is important to not disturb too strongly the reading of
+    information and this can be made by setting a very light
+    background color that is barely perceptible."
+    :group 'nano)
+
+  (defface nano-face-header-default nil
+    "Default face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-critical nil
+    "Critical face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-popout nil
+    "Popout face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-strong nil
+    "Strong face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-salient nil
+    "Salient face for ther header line."
+    :group 'nano)
+
+  (defface nano-face-header-faded nil
+    "Faded face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-subtle nil
+    "Subtle face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-highlight nil
+    "Highlight face for the header line."
+    :group 'nano)
+
+  (defface nano-face-header-separator nil
+    "Face for separating item in the header line (internal use)"
+    :group 'nano)
+
+  (defface nano-face-header-filler nil
+    "Face compsenting spaces in the header line (internal use) "
+    :group 'nano)
+
+  (defface nano-face-tag-default nil
+    "Default face for tags"
+    :group 'nano)
+
+  (defface nano-face-tag-faded nil
+    "Faded face for tags"
+    :group 'nano)
+
+  (defface nano-face-tag-strong nil
+    "Strong face for tags"
+    :group 'nano)
+
+  (defface nano-face-tag-salient nil
+    "Salient face for tags"
+    :group 'nano)
+
+  (defface nano-face-tag-popout nil
+    "Popout face for tags"
+    :group 'nano)
+
+  (defface nano-face-tag-critical nil
+    "Critical face for tags"
+    :group 'nano)
+
+  (defun nano-what-faces (pos)
+    "Get the font faces at POS."
+    (interactive "d")
+    (let ((faces (remq nil
+                       (list
+                        (get-char-property pos 'read-face-name)
+                        (get-char-property pos 'face)
+                        (plist-get (text-properties-at pos) 'face)))))
+      (message "Faces: %s" faces)))
+
+  (defun nano-faces ()
+    "Derive face attributes for nano-faces using nano-theme values."
+    (set-face-attribute 'nano-face-default nil
+                        :foreground nano-color-foreground
+                        :background nano-color-background
+                        :family     nano-font-family-monospaced
+                        :height       (* nano-font-size 10))
+    (set-face-attribute 'nano-face-critical nil
+                        :foreground nano-color-foreground
+                        :background nano-color-critical)
+    (set-face-attribute 'nano-face-popout nil
+                        :foreground nano-color-popout)
+
+    (set-face-attribute 'nano-face-variable-pitch nil
+                        :foreground (face-foreground 'nano-face-default)
+                        :background (face-background 'nano-face-default)
+                        :family nano-font-family-proportional
+                        :height (* nano-font-size 10))
+    (if (display-graphic-p)
+        (set-face-attribute 'nano-face-strong nil
+                            :foreground nano-color-strong
+                            :weight 'medium)
+      (set-face-attribute 'nano-face-strong nil
+                          :foreground nano-color-strong
+                          :weight 'bold))
+
+    (set-face-attribute 'nano-face-salient nil
+                        :foreground nano-color-salient
+                        :weight 'light)
+
+    (set-face-attribute 'nano-face-faded nil
+                        :foreground nano-color-faded
+                        :weight 'light)
+
+    (set-face-attribute 'nano-face-subtle nil
+                        :background nano-color-subtle)
+
+    (set-face-attribute 'nano-face-header-default nil
+                        :foreground nano-color-foreground
+                        :background nano-color-subtle
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-tag-default nil
+                        :foreground nano-color-foreground
+                        :background nano-color-background
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+                                     (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-foreground
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-strong nil
+                        :foreground nano-color-strong
+                        :background nano-color-subtle
+                        :inherit 'nano-face-strong
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-tag-strong nil
+                        :foreground nano-color-strong
+                        :background nano-color-subtle
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+                                     (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-strong
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-salient nil
+                        :foreground nano-color-background
+                        :background nano-color-salient
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-tag-salient nil
+                        :foreground nano-color-background
+                        :background nano-color-salient
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+                                     (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-salient
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-popout nil
+                        :foreground nano-color-background
+                        :background nano-color-popout
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-tag-popout nil
+                        :foreground nano-color-background
+                        :background nano-color-popout
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+  				   (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-popout
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-faded nil
+                        :foreground nano-color-background
+                        :background nano-color-faded
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-tag-faded nil
+                        :foreground nano-color-background
+                        :background nano-color-faded
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+                                     (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-faded
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-subtle nil)
+
+    (set-face-attribute 'nano-face-header-critical nil
+                        :foreground nano-color-background
+                        :background nano-color-critical
+                        :box `(:line-width 1
+                                           :color ,nano-color-background
+                                           :style nil))
+    (set-face-attribute 'nano-face-tag-critical nil
+                        :foreground nano-color-background
+                        :background nano-color-critical
+                        :weight 'regular
+                        :height (if (display-graphic-p)
+                                    (round
+                                     (* 0.85 (* 10 nano-font-size)))
+                                  1)
+                        :box `(:line-width 1
+                                           :color ,nano-color-critical
+                                           :style nil))
+
+    (set-face-attribute 'nano-face-header-separator nil
+                        :inherit 'nano-face-default
+                        :height 0.1)
+    (set-face-attribute 'nano-face-header-filler nil
+                        :inherit 'nano-face-header-default
+                        :height 0.1)
+    (set-face-attribute 'nano-face-header-highlight nil
+                        :inherit 'nano-face-header-faded
+                        :box nil))
+
+  (provide 'nano-faces)
 #+end_src
-** configure minibuffer & completions
-*** =vertico= package
-#+begin_src emacs-lisp :tangle "init.el"
-(use-package vertico
-  :ensure t
-  :init
-  (vertico-mode 1)
-  :custom
-  (vertico-cycle t))
+**** =nano-themes= - theme control
+
+This file derives all faces in various modes from the fundamental faces defined in nano-faces.
+
+Notable exceptions:
+- The highlight-line face uses a very light color.
+- The terminal faces use a palette derived from material theme. That uses a very light color,
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'nano-faces)
+
+  (defcustom nano-theme-var nil
+    "Variable which sets the default startup theme as light or dark.
+    Also allows for toggling of the themes. Is set to 'light' by
+    'nano-theme-light' and 'dark' by 'nano-theme-dark'.
+    Defaults to nil."
+    :group 'nano
+    :type 'string)
+
+  ;; When we set a face, we take care of removing any previous settings
+  (defun set-face (face style)
+    "Reset FACE and make it inherit STYLE."
+    (if (facep face)
+        (set-face-attribute face nil
+                            :foreground 'unspecified :background 'unspecified
+                            :family     'unspecified :slant      'unspecified
+                            :weight     'unspecified :height     'unspecified
+                            :underline  'unspecified :overline   'unspecified
+                            :box        'unspecified :inherit    style)
+      (message "NANO Warning: Face %s could not be set. It may not be defined."
+               face)))
+
+  (defun nano-theme--basics ()
+    "Derive basic Emacs faces from nano-faces and nano-color-theme."
+
+    (set-foreground-color nano-color-foreground)
+    (set-background-color nano-color-background)
+
+    ;; XXX the following seems to be a no-op, should it be removed?
+    (set-face-attribute 'default nil
+                        :foreground (face-foreground 'default)
+                        :background (face-background 'default)
+                        :weight     'light
+                        :family     (face-attribute 'nano-face-default :family)
+                        :height     (face-attribute 'nano-face-default :height))
+
+    (if (display-graphic-p)
+        (set-face-attribute 'bold nil :weight 'regular)
+      (set-face-attribute 'bold nil :weight 'bold))
+
+    ;; Structural
+    (set-face 'bold                                     'nano-face-strong)
+    ;; (set-face 'italic                                    'nano-face-faded)
+    (set-face 'bold-italic                              'nano-face-strong)
+    (set-face 'region                                   'nano-face-subtle)
+    (set-face 'highlight                                'nano-face-subtle)
+    ;;(set-face 'fixed-pitch                                     'default)
+    (set-face 'fixed-pitch-serif                       'nano-face-default)
+    (set-face 'cursor                                  'nano-face-default)
+    (if 'nano-font-family-proportional
+        (set-face-attribute 'variable-pitch nil ;; to work with mixed-pitch
+                            :foreground (face-foreground 'default)
+                            :background (face-background 'default)
+                            :family     (face-attribute 'nano-face-variable-pitch :family)
+                            :height     (face-attribute 'nano-face-variable-pitch :height))
+      (set-face 'variable-pitch                     'nano-face-default))
+
+    (set-face-attribute 'cursor nil
+                        :background (face-foreground 'nano-face-default))
+    (set-face-attribute 'window-divider nil
+                        :foreground (face-background 'nano-face-default))
+    (set-face-attribute 'window-divider-first-pixel nil
+                        :foreground nano-color-background)
+    ;;                  :foreground (face-background 'nano-face-subtle))
+    (set-face-attribute 'window-divider-last-pixel nil
+                        :foreground nano-color-background)
+    ;;                  :foreground (face-background 'nano-face-subtle)))
+    (set-face-foreground 'vertical-border nano-color-subtle)
+
+    ;; Semantic
+    (set-face 'shadow                                    'nano-face-faded)
+    (set-face 'success                                 'nano-face-salient)
+    (set-face 'warning                                  'nano-face-popout)
+    (set-face 'error                                  'nano-face-critical)
+    (set-face 'match                                    'nano-face-popout)
+
+    ;; General
+    (set-face 'buffer-menu-buffer                       'nano-face-strong)
+    (set-face 'minibuffer-prompt                        'nano-face-strong)
+    (set-face 'link                                    'nano-face-salient)
+    (set-face 'fringe                                    'nano-face-faded)
+    (set-face-attribute 'fringe nil
+                        :foreground (face-background 'nano-face-subtle)
+                        :background (face-background 'default))
+    (set-face 'isearch                                  'nano-face-strong)
+    (set-face 'isearch-fail                              'nano-face-faded)
+    (set-face 'lazy-highlight                           'nano-face-subtle)
+    (set-face 'trailing-whitespace                      'nano-face-subtle)
+    (set-face 'show-paren-match                         'nano-face-popout)
+    (set-face 'show-paren-mismatch                           'face-normal)
+    (set-face-attribute 'tooltip nil                         :height 0.85)
+    (set-face 'secondary-selection                      'nano-face-subtle)
+    (set-face 'completions-common-part                   'nano-face-faded)
+    (set-face 'completions-first-difference            'nano-face-default))
+  (defun nano-theme--font-lock ()
+    "Derive font-lock faces from nano-faces."
+    (set-face 'font-lock-comment-face                    'nano-face-faded)
+    (set-face 'font-lock-doc-face                        'nano-face-faded)
+    (set-face 'font-lock-string-face                    'nano-face-popout)
+    (set-face 'font-lock-constant-face                 'nano-face-salient)
+    (set-face 'font-lock-warning-face                   'nano-face-popout)
+    (set-face 'font-lock-function-name-face             'nano-face-strong)
+    (set-face 'font-lock-variable-name-face             'nano-face-strong)
+    (set-face 'font-lock-builtin-face                  'nano-face-salient)
+    (set-face 'font-lock-type-face                     'nano-face-salient)
+    (set-face 'font-lock-keyword-face                  'nano-face-salient))
+
+
+(defun nano-theme--mode-line ()
+  "Derive mode-line and header-line faces from nano-faces."
+  (set-face-attribute 'mode-line nil
+                      :height 0.1
+                      :foreground (if (display-graphic-p)
+                                      (face-background 'nano-face-default)
+                                    (face-foreground 'nano-face-default))
+                      :background (face-background 'nano-face-default)
+                      :underline  (if (display-graphic-p)
+                                      (face-background 'nano-face-subtle)
+                                    t)
+                      :overline nil
+                      :box nil)
+  (set-face-attribute 'mode-line-inactive nil
+                      :height 0.1
+                      :foreground (if (display-graphic-p)
+                                      (face-background 'nano-face-default)
+                                    (face-foreground 'nano-face-default))
+                      :background (face-background 'nano-face-default)
+                      :underline (if (display-graphic-p)
+                                     (face-background 'nano-face-subtle)
+                                   t)
+                      :overline nil
+                      :inherit nil
+                      :box nil)
+  
+  ;;(when (display-graphic-p)
+  (set-face-attribute 'header-line nil
+                       :weight 'light
+                       :foreground (face-foreground 'nano-face-default)
+                       :background (face-background 'nano-face-default)
+
+                       :overline nil
+                       :underline nil
+                       :box nil
+                       :box `(:line-width 1
+                                          :color ,(face-background 'nano-face-default)
+                                          :style nil)
+                       :inherit nil)
+
+  ;; (when (not (display-graphic-p))
+  ;;   (set-face-attribute 'header-line nil
+  ;;                    :weight 'light
+  ;;                       :foreground (face-foreground 'nano-face-default)
+  ;;                       :background (face-background 'nano-face-subtle)
+  ;;                       :inverse-video t
+  ;;                       :overline nil
+  ;;                       :underline nil
+  ;;                       :box nil
+  ;;                            :inherit nil))
+
+  ;; (set-face-attribute 'internal-border nil
+  ;;                     :background (face-foreground 'nano-face-default))
+
+  (set-face-attribute 'internal-border nil
+                       :background (face-background 'nano-face-default)))
+
+
+  (defun nano-theme--minibuffer ()
+    "Derive minibuffer / echo area faces from nano faces."
+    ;; Minibuffer / echo area
+    (dolist (buffer (list " *Minibuf-0*" " *Echo Area 0*"
+                          " *Minibuf-1*" " *Echo Area 1*"))
+      (when (get-buffer buffer)
+        (with-current-buffer buffer
+          (face-remap-add-relative 'default 'nano-face-faded)))))
+
+
+  (defun nano-theme--hl-line ()
+    "Derive hl-line faces from nano faces."
+    (with-eval-after-load 'hl-line
+      (set-face-attribute 'hl-line nil
+                          :background nano-color-highlight)))
+
+
+
+  (defun nano-theme--buttons ()
+    "Derive button faces from nano faces."
+    ;; Buttons
+    (with-eval-after-load 'cus-edit
+      (set-face-attribute 'custom-button nil
+                          :foreground (face-foreground 'nano-face-faded)
+                          :background (face-background 'nano-face-default)
+                          :box `(:line-width 1
+                                             :color ,(face-foreground 'nano-face-faded)
+                                             :style nil))
+      (set-face-attribute 'custom-button-mouse nil
+                          ;;                      :inherit 'custom-button
+                          :foreground (face-foreground 'nano-face-faded)
+                          :background (face-background 'nano-face-subtle)
+                          :box `(:line-width 1
+                                             :color ,(face-foreground 'nano-face-faded)
+                                             :style nil))
+      (set-face-attribute 'custom-button-pressed nil
+                          :foreground (face-background 'default)
+                          :background (face-foreground 'nano-face-salient)
+                          :inherit 'nano-face-salient
+                          :box `(:line-width 1
+                                             :color ,(face-foreground 'nano-face-salient)
+                                             :style nil)
+                          :inverse-video nil)))
+
+
+  (defun nano-theme--info ()
+    "Derive info faces from nano faces."
+    (with-eval-after-load 'info
+      (set-face 'info-menu-header                       'nano-face-strong)
+      (set-face 'info-header-node                      'nano-face-default)
+      (set-face 'info-index-match                      'nano-face-salient)
+      (set-face 'Info-quoted                             'nano-face-faded)
+      (set-face 'info-title-1                           'nano-face-strong)
+      (set-face 'info-title-2                           'nano-face-strong)
+      (set-face 'info-title-3                           'nano-face-strong)
+      (set-face 'info-title-4                           'nano-face-strong)))
+
+
+  (defun nano-theme--speedbar ()
+    "Derive speedbar faces from nano faces "
+    (with-eval-after-load 'speedbar
+      (set-face 'speedbar-button-face                    'nano-face-faded)
+      (set-face 'speedbar-directory-face                'nano-face-strong)
+      (set-face 'speedbar-file-face                    'nano-face-default)
+      (set-face 'speedbar-highlight-face             'nano-face-highlight)
+      (set-face 'speedbar-selected-face                 'nano-face-subtle)
+      (set-face 'speedbar-separator-face                 'nano-face-faded)
+      (set-face 'speedbar-tag-face                       'nano-face-faded)))
+
+
+  (defun nano-theme--bookmark ()
+    "Derive bookmark faces from nano faces."
+    (with-eval-after-load 'bookmark
+      ;; (set-face 'bookmark-menu-heading                  'nano-face-strong)
+      (set-face 'bookmark-menu-bookmark                'nano-face-salient)))
+
+
+  (defun nano-theme--message ()
+    "Derive message faces from nano faces."
+    (with-eval-after-load 'message
+      (unless (version< emacs-version "27.0")
+        (set-face 'message-cited-text-1                  'nano-face-faded)
+        (set-face 'message-cited-text-2                  'nano-face-faded)
+        (set-face 'message-cited-text-3                  'nano-face-faded)
+        (set-face 'message-cited-text-4                 'nano-face-faded))
+      (set-face 'message-cited-text                      'nano-face-faded)
+      (set-face 'message-header-cc                     'nano-face-default)
+      (set-face 'message-header-name                    'nano-face-strong)
+      (set-face 'message-header-newsgroups             'nano-face-default)
+      (set-face 'message-header-other                  'nano-face-default)
+      (set-face 'message-header-subject                'nano-face-salient)
+      (set-face 'message-header-to                     'nano-face-salient)
+      (set-face 'message-header-xheader                'nano-face-default)
+      (set-face 'message-mml                            'nano-face-popout)
+      (set-face 'message-separator                       'nano-face-faded)))
+
+
+  (defun nano-theme--outline ()
+    "Derive outline faces from nano faces."
+    (with-eval-after-load 'outline
+      (set-face 'outline-1                              'nano-face-strong)
+      (set-face 'outline-2                              'nano-face-strong)
+      (set-face 'outline-3                              'nano-face-strong)
+      (set-face 'outline-4                              'nano-face-strong)
+      (set-face 'outline-5                              'nano-face-strong)
+      (set-face 'outline-6                              'nano-face-strong)
+      (set-face 'outline-7                              'nano-face-strong)
+      (set-face 'outline-8                              'nano-face-strong)))
+
+
+  (defun nano-theme--customize ()
+    "Derive customize faces from nano faces."
+    (with-eval-after-load 'cus-edit
+      (set-face 'widget-field                           'nano-face-subtle)
+      (set-face 'widget-button                          'nano-face-strong)
+      (set-face 'widget-single-line-field               'nano-face-subtle)
+      (set-face 'custom-group-subtitle                  'nano-face-strong)
+      (set-face 'custom-group-tag                       'nano-face-strong)
+      (set-face 'custom-group-tag-1                     'nano-face-strong)
+      (set-face 'custom-comment                          'nano-face-faded)
+      (set-face 'custom-comment-tag                      'nano-face-faded)
+      (set-face 'custom-changed                        'nano-face-salient)
+      (set-face 'custom-modified                       'nano-face-salient)
+      (set-face 'custom-face-tag                        'nano-face-strong)
+      (set-face 'custom-variable-tag                    'nano-face-strong)
+      (set-face 'custom-invalid                         'nano-face-popout)
+      (set-face 'custom-visibility                     'nano-face-salient)
+      (set-face 'custom-state                          'nano-face-salient)
+      (set-face 'custom-link                           'nano-face-salient)))
+
+  (defun nano-theme--package ()
+    "Derive package faces from nano faces."
+    (with-eval-after-load 'package
+      (set-face 'package-description                   'nano-face-default)
+      (set-face 'package-help-section-name             'nano-face-default)
+      (set-face 'package-name                          'nano-face-salient)
+      (set-face 'package-status-avail-obso               'nano-face-faded)
+      (set-face 'package-status-available              'nano-face-default)
+      (set-face 'package-status-built-in               'nano-face-salient)
+      (set-face 'package-status-dependency             'nano-face-salient)
+      (set-face 'package-status-disabled                 'nano-face-faded)
+      (set-face 'package-status-external               'nano-face-default)
+      (set-face 'package-status-held                   'nano-face-default)
+      (set-face 'package-status-incompat                 'nano-face-faded)
+      (set-face 'package-status-installed              'nano-face-salient)
+      (set-face 'package-status-new                    'nano-face-default)
+      (set-face 'package-status-unsigned               'nano-face-default))
+
+    ;; Button face is hardcoded, we have to redefine the relevant
+    ;; function
+    (defun package-make-button (text &rest properties)
+      "Insert button labeled TEXT with button PROPERTIES at point.
+    PROPERTIES are passed to `insert-text-button', for which this
+    function is a convenience wrapper used by `describe-package-1'."
+      (let ((button-text (if (display-graphic-p)
+                             text (concat "[" text "]")))
+            (button-face (if (display-graphic-p)
+                             `(:box `(:line-width 1
+                                                  :color ,nano-color-subtle
+                                                  :style nil)
+                                    :foreground ,nano-color-faded
+                                    :background ,nano-color-subtle)
+                           'link)))
+        (apply #'insert-text-button button-text
+               'face button-face 'follow-link t properties))))
+
+
+  (defun nano-theme--flyspell ()
+    "Derive flyspell faces from nano faces."
+    (with-eval-after-load 'flyspell
+      (set-face 'flyspell-duplicate                     'nano-face-popout)
+      (set-face 'flyspell-incorrect                     'nano-face-popout)))
+
+
+  (defun nano-theme--ido ()
+    "Derive ido faces from nano faces."
+    (with-eval-after-load 'ido
+      (set-face 'ido-first-match                       'nano-face-salient)
+      (set-face 'ido-only-match                          'nano-face-faded)
+      (set-face 'ido-subdir                             'nano-face-strong)))
+
+
+  (defun nano-theme--diff ()
+    "Derive diff faces from nano faces."
+    (with-eval-after-load 'diff-mode
+      (set-face 'diff-header                             'nano-face-faded)
+      (set-face 'diff-file-header                       'nano-face-strong)
+      (set-face 'diff-context                          'nano-face-default)
+      (set-face 'diff-removed                            'nano-face-faded)
+      (set-face 'diff-changed                           'nano-face-popout)
+      (set-face 'diff-added                            'nano-face-salient)
+      (set-face 'diff-refine-added                    '(nano-face-salient
+                                                        nano-face-strong))
+      (set-face 'diff-refine-changed                    'nano-face-popout)
+      (set-face 'diff-refine-removed                    'nano-face-faded)
+      (set-face-attribute     'diff-refine-removed nil :strike-through t)))
+
+
+  (defun nano-theme--term ()
+    "Derive term faces from nano faces, and material theme colors."
+    (with-eval-after-load 'term
+      ;; (setq eterm-256color-disable-bold nil)
+      (set-face 'term-bold                                   'nano-face-strong)
+      (set-face-attribute 'term-color-black nil
+                          :foreground (face-foreground 'nano-face-default)
+                          :background (face-foreground 'nano-face-default))
+      (set-face-attribute 'term-color-white nil
+                          :foreground (face-background 'nano-face-default)
+                          :background (face-background 'nano-face-default))
+      (set-face-attribute 'term-color-blue nil
+                          :foreground "#42A5F5"   ;; material color blue L400
+                          :background "#BBDEFB")  ;; material color blue L100
+      (set-face-attribute 'term-color-cyan nil
+                          :foreground "#26C6DA"   ;; material color cyan L400
+                          :background "#B2EBF2")  ;; material color cyan L100
+      (set-face-attribute 'term-color-green nil
+                          :foreground "#66BB6A"   ;; material color green L400
+                          :background "#C8E6C9")  ;; material color green L100
+      (set-face-attribute 'term-color-magenta nil
+                          :foreground "#AB47BC"   ;; material color purple L400
+                          :background "#E1BEE7")  ;; material color purple L100
+      (set-face-attribute 'term-color-red nil
+                          :foreground "#EF5350"   ;; material color red L400
+                          :background "#FFCDD2")  ;; material color red L100
+      (set-face-attribute 'term-color-yellow nil
+                          :foreground "#FFEE58"    ;; material color yellow L400
+                          :background "#FFF9C4"))) ;; material color yellow L100
+
+
+  (defun nano-theme--calendar ()
+    "Derive calendar faces from nano faces."
+    (with-eval-after-load 'calendar
+      (set-face 'calendar-today                         'nano-face-strong)))
+
+
+  (defun nano-theme--agenda ()
+    "Derive agenda faces from nano faces."
+    (with-eval-after-load 'org-agenda
+      (set-face 'org-agenda-calendar-event             'nano-face-default)
+      (set-face 'org-agenda-calendar-sexp              'nano-face-salient)
+      (set-face 'org-agenda-clocking                     'nano-face-faded)
+      (set-face 'org-agenda-column-dateline              'nano-face-faded)
+      (set-face 'org-agenda-current-time                'nano-face-strong)
+      (set-face 'org-agenda-date                       'nano-face-salient)
+      (set-face 'org-agenda-date-today                '(nano-face-salient
+                                                        nano-face-strong))
+      (set-face 'org-agenda-date-weekend                 'nano-face-faded)
+      (set-face 'org-agenda-diary                        'nano-face-faded)
+      (set-face 'org-agenda-dimmed-todo-face             'nano-face-faded)
+      (set-face 'org-agenda-done                         'nano-face-faded)
+      (set-face 'org-agenda-filter-category              'nano-face-faded)
+      (set-face 'org-agenda-filter-effort                'nano-face-faded)
+      (set-face 'org-agenda-filter-regexp                'nano-face-faded)
+      (set-face 'org-agenda-filter-tags                  'nano-face-faded)
+      ;;  (set-face 'org-agenda-property-face                'nano-face-faded)
+      (set-face 'org-agenda-restriction-lock             'nano-face-faded)
+      (set-face 'org-agenda-structure                   'nano-face-strong)))
+
+
+  (defun nano-theme--org ()
+    "Derive org faces from nano faces."
+    (with-eval-after-load 'org
+      (set-face 'org-archived                            'nano-face-faded)
+
+      (set-face 'org-block                                       'hl-line)
+      (set-face 'org-block-begin-line                    'nano-face-faded)
+      (set-face 'org-block-end-line                      'nano-face-faded)
+      (unless (version< emacs-version "27.0")
+        (set-face-attribute 'org-block nil                      :extend t)
+        (set-face-attribute 'org-block-begin-line nil           :extend t)
+        (set-face-attribute 'org-block-end-line nil             :extend t))
+
+      (set-face 'org-checkbox                            'nano-face-faded)
+      (set-face 'org-checkbox-statistics-done            'nano-face-faded)
+      (set-face 'org-checkbox-statistics-todo            'nano-face-faded)
+      (set-face 'org-clock-overlay                       'nano-face-faded)
+      (set-face 'org-code                                'nano-face-faded)
+      (set-face 'org-column                              'nano-face-faded)
+      (set-face 'org-column-title                        'nano-face-faded)
+      (set-face 'org-date                                'nano-face-faded)
+      (set-face 'org-date-selected                       'nano-face-faded)
+      (set-face 'org-default                             'nano-face-faded)
+      (set-face 'org-document-info                       'nano-face-faded)
+      (set-face 'org-document-info-keyword               'nano-face-faded)
+      (set-face 'org-document-title                      'nano-face-faded)
+      (set-face 'org-done                              'nano-face-default)
+      (set-face 'org-drawer                              'nano-face-faded)
+      (set-face 'org-ellipsis                            'nano-face-faded)
+      (set-face 'org-footnote                            'nano-face-faded)
+      (set-face 'org-formula                             'nano-face-faded)
+      (set-face 'org-headline-done                       'nano-face-faded)
+      ;; (set-face 'org-hide                             'nano-face-faded)
+      ;; (set-face 'org-indent                           'nano-face-faded)
+      (set-face 'org-latex-and-related                   'nano-face-faded)
+      (set-face 'org-level-1                            'nano-face-strong)
+      (set-face 'org-level-2                            'nano-face-strong)
+      (set-face 'org-level-3                            'nano-face-strong)
+      (set-face 'org-level-4                            'nano-face-strong)
+      (set-face 'org-level-5                            'nano-face-strong)
+      (set-face 'org-level-6                            'nano-face-strong)
+      (set-face 'org-level-7                            'nano-face-strong)
+      (set-face 'org-level-8                            'nano-face-strong)
+      (set-face 'org-link                              'nano-face-salient)
+      (set-face 'org-list-dt                             'nano-face-faded)
+      (set-face 'org-macro                               'nano-face-faded)
+      (set-face 'org-meta-line                           'nano-face-faded)
+      (set-face 'org-mode-line-clock                     'nano-face-faded)
+      (set-face 'org-mode-line-clock-overrun             'nano-face-faded)
+      (set-face 'org-priority                            'nano-face-faded)
+      (set-face 'org-property-value                      'nano-face-faded)
+      (set-face 'org-quote                               'nano-face-faded)
+      (set-face 'org-scheduled                           'nano-face-faded)
+      (set-face 'org-scheduled-previously                'nano-face-faded)
+      (set-face 'org-scheduled-today                   '(nano-face-salient
+                                                         +                                                      nano-face-strong))
+      (set-face 'org-sexp-date                           'nano-face-faded)
+      (set-face 'org-special-keyword                     'nano-face-faded)
+      (set-face 'org-table                               'nano-face-faded)
+      (set-face 'org-tag                                'nano-face-popout)
+      (set-face 'org-tag-group                           'nano-face-faded)
+      (set-face 'org-target                              'nano-face-faded)
+      (set-face 'org-time-grid                           'nano-face-faded)
+      (set-face 'org-todo                              'nano-face-salient)
+      (set-face 'org-upcoming-deadline                 'nano-face-default)
+      (set-face 'org-verbatim                           'nano-face-popout)
+      (set-face 'org-verse                               'nano-face-faded)
+      (set-face 'org-warning                            'nano-face-popout)))
+
+
+  (defun nano-theme--mu4e ()
+    "Derive mu4e faces from nano faces."
+    (with-eval-after-load 'mu4e
+      (set-face 'mu4e-attach-number-face                'nano-face-strong)
+      (set-face 'mu4e-cited-1-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-2-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-3-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-4-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-5-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-6-face                       'nano-face-faded)
+      (set-face 'mu4e-cited-7-face                       'nano-face-faded)
+      (set-face 'mu4e-compose-header-face                'nano-face-faded)
+      (set-face 'mu4e-compose-separator-face             'nano-face-faded)
+      (set-face 'mu4e-contact-face                     'nano-face-salient)
+      (set-face 'mu4e-context-face                       'nano-face-faded)
+      (set-face 'mu4e-draft-face                         'nano-face-faded)
+      (set-face 'mu4e-flagged-face                      'nano-face-popout)
+      (set-face 'mu4e-footer-face                        'nano-face-faded)
+      (set-face 'mu4e-forwarded-face                   'nano-face-default)
+      (set-face 'mu4e-header-face                      'nano-face-default)
+      (set-face 'mu4e-header-highlight-face                      'hl-line)
+      (set-face 'mu4e-header-key-face                   'nano-face-strong)
+      (set-face 'mu4e-header-marks-face                  'nano-face-faded)
+      (set-face 'mu4e-header-title-face                 'nano-face-strong)
+      (set-face 'mu4e-header-value-face                'nano-face-default)
+      (set-face 'mu4e-highlight-face                    'nano-face-popout)
+      (set-face 'mu4e-link-face                        'nano-face-salient)
+      (set-face 'mu4e-modeline-face                      'nano-face-faded)
+      (set-face 'mu4e-moved-face                         'nano-face-faded)
+      (set-face 'mu4e-ok-face                            'nano-face-faded)
+      (set-face 'mu4e-region-code                        'nano-face-faded)
+      (set-face 'mu4e-replied-face                     'nano-face-default)
+      (set-face 'mu4e-special-header-value-face        'nano-face-default)
+      (set-face 'mu4e-system-face                        'nano-face-faded)
+      (set-face 'mu4e-title-face                        'nano-face-strong)
+      (set-face 'mu4e-trashed-face                       'nano-face-faded)
+      (set-face 'mu4e-unread-face                       'nano-face-strong)
+      ;;(set-face-attribute 'mu4e-unread-face nil :weight 'regular)
+      (set-face 'mu4e-url-number-face                    'nano-face-faded)
+      (set-face 'mu4e-view-body-face                   'nano-face-default)
+      (set-face 'mu4e-warning-face                      'nano-face-popout)))
+
+
+  (defun nano-theme--elfeed ()
+    "Derive elfeed faces from nano faces."
+    (with-eval-after-load 'elfeed
+      (set-face 'elfeed-log-date-face                    'nano-face-faded)
+      (set-face 'elfeed-log-info-level-face            'nano-face-default)
+      (set-face 'elfeed-log-debug-level-face           'nano-face-default)
+      (set-face 'elfeed-log-warn-level-face             'nano-face-popout)
+      (set-face 'elfeed-log-error-level-face            'nano-face-popout)
+      (set-face 'elfeed-search-tag-face                  'nano-face-faded)
+      (set-face 'elfeed-search-date-face                 'nano-face-faded)
+      (set-face 'elfeed-search-feed-face               'nano-face-salient)
+      (set-face 'elfeed-search-filter-face               'nano-face-faded)
+      (set-face 'elfeed-search-last-update-face        'nano-face-salient)
+      (set-face 'elfeed-search-title-face              'nano-face-default)
+      (set-face 'elfeed-search-tag-face                  'nano-face-faded)
+      (set-face 'elfeed-search-unread-count-face        'nano-face-strong)
+      (set-face 'elfeed-search-unread-title-face        'nano-face-strong)))
+
+  (defun nano-theme--deft ()
+    "Derive deft faces from nano faces."
+    (with-eval-after-load 'deft
+      (set-face 'deft-filter-string-error-face         'nano-face-popout)
+      (set-face 'deft-filter-string-face              'nano-face-default)
+      (set-face 'deft-header-face                     'nano-face-salient)
+      (set-face 'deft-separator-face                    'nano-face-faded)
+      (set-face 'deft-summary-face                      'nano-face-faded)
+      (set-face 'deft-time-face                       'nano-face-salient)
+      (set-face 'deft-title-face                       'nano-face-strong)))
+
+  (defun nano-theme--rst ()
+    "Derive rst faces from nano faces."
+    (with-eval-after-load 'rst
+      (set-face 'rst-adornment                           'nano-face-faded)
+      (set-face 'rst-block                             'nano-face-default)
+      (set-face 'rst-comment                             'nano-face-faded)
+      (set-face 'rst-definition                        'nano-face-salient)
+      (set-face 'rst-directive                         'nano-face-salient)
+      (set-face 'rst-emphasis1                           'nano-face-faded)
+      (set-face 'rst-emphasis2                          'nano-face-strong)
+      (set-face 'rst-external                          'nano-face-salient)
+      (set-face 'rst-level-1                            'nano-face-strong)
+      (set-face 'rst-level-2                            'nano-face-strong)
+      (set-face 'rst-level-3                            'nano-face-strong)
+      (set-face 'rst-level-4                            'nano-face-strong)
+      (set-face 'rst-level-5                            'nano-face-strong)
+      (set-face 'rst-level-6                            'nano-face-strong)
+      (set-face 'rst-literal                           'nano-face-salient)
+      (set-face 'rst-reference                         'nano-face-salient)
+      (set-face 'rst-transition                        'nano-face-default)))
+
+
+  (defun nano-theme--markdown ()
+    "Derive markdown faces from nano faces."
+    (with-eval-after-load 'markdown-mode
+      (set-face 'markdown-blockquote-face              'nano-face-default)
+      (set-face 'markdown-bold-face                     'nano-face-strong)
+      (set-face 'markdown-code-face                    'nano-face-default)
+      (set-face 'markdown-comment-face                   'nano-face-faded)
+      (set-face 'markdown-footnote-marker-face         'nano-face-default)
+      (set-face 'markdown-footnote-text-face           'nano-face-default)
+      (set-face 'markdown-gfm-checkbox-face            'nano-face-default)
+      (set-face 'markdown-header-delimiter-face          'nano-face-faded)
+      (set-face 'markdown-header-face                   'nano-face-strong)
+      (set-face 'markdown-header-face-1                 'nano-face-strong)
+      (set-face 'markdown-header-face-2                 'nano-face-strong)
+      (set-face 'markdown-header-face-3                 'nano-face-strong)
+      (set-face 'markdown-header-face-4                 'nano-face-strong)
+      (set-face 'markdown-header-face-5                 'nano-face-strong)
+      (set-face 'markdown-header-face-6                'nano-face-strong)
+      (set-face 'markdown-header-rule-face             'nano-face-default)
+      (set-face 'markdown-highlight-face               'nano-face-default)
+      (set-face 'markdown-hr-face                      'nano-face-default)
+      (set-face 'markdown-html-attr-name-face          'nano-face-default)
+      (set-face 'markdown-html-attr-value-face         'nano-face-default)
+      (set-face 'markdown-html-entity-face             'nano-face-default)
+      (set-face 'markdown-html-tag-delimiter-face      'nano-face-default)
+      (set-face 'markdown-html-tag-name-face           'nano-face-default)
+      (set-face 'markdown-inline-code-face              'nano-face-popout)
+      (set-face 'markdown-italic-face                    'nano-face-faded)
+      (set-face 'markdown-language-info-face           'nano-face-default)
+      (set-face 'markdown-language-keyword-face        'nano-face-default)
+      (set-face 'markdown-line-break-face              'nano-face-default)
+      (set-face 'markdown-link-face                    'nano-face-salient)
+      (set-face 'markdown-link-title-face              'nano-face-default)
+      (set-face 'markdown-list-face                      'nano-face-faded)
+      (set-face 'markdown-markup-face                    'nano-face-faded)
+      (set-face 'markdown-math-face                    'nano-face-default)
+      (set-face 'markdown-metadata-key-face              'nano-face-faded)
+      (set-face 'markdown-metadata-value-face            'nano-face-faded)
+      (set-face 'markdown-missing-link-face            'nano-face-default)
+      (set-face 'markdown-plain-url-face               'nano-face-default)
+      (set-face 'markdown-pre-face                     'nano-face-default)
+      (set-face 'markdown-reference-face               'nano-face-salient)
+      (set-face 'markdown-strike-through-face            'nano-face-faded)
+      (set-face 'markdown-table-face                   'nano-face-default)
+      (set-face 'markdown-url-face                     'nano-face-salient)))
+
+
+  (defun nano-theme--ivy ()
+    "Derive ivy faces from nano faces."
+    (with-eval-after-load 'ivy
+      (set-face 'ivy-action                              'nano-face-faded)
+      (set-face 'ivy-completions-annotations             'nano-face-faded)
+      (set-face 'ivy-confirm-face                        'nano-face-faded)
+      (set-face 'ivy-current-match    '(nano-face-strong nano-face-subtle))
+      (set-face 'ivy-cursor                             'nano-face-strong)
+      (set-face 'ivy-grep-info                          'nano-face-strong)
+      (set-face 'ivy-grep-line-number                    'nano-face-faded)
+      (set-face 'ivy-highlight-face                     'nano-face-strong)
+      (set-face 'ivy-match-required-face                 'nano-face-faded)
+      (set-face 'ivy-minibuffer-match-face-1             'nano-face-faded)
+      (set-face 'ivy-minibuffer-match-face-2             'nano-face-faded)
+      (set-face 'ivy-minibuffer-match-face-3             'nano-face-faded)
+      (set-face 'ivy-minibuffer-match-face-4             'nano-face-faded)
+      (set-face 'ivy-minibuffer-match-highlight         'nano-face-strong)
+      (set-face 'ivy-modified-buffer                    'nano-face-popout)
+      (set-face 'ivy-modified-outside-buffer            'nano-face-strong)
+      (set-face 'ivy-org                                 'nano-face-faded)
+      (set-face 'ivy-prompt-match                        'nano-face-faded)
+      (set-face 'ivy-remote                            'nano-face-default)
+      (set-face 'ivy-separator                           'nano-face-faded)
+      (set-face 'ivy-subdir                              'nano-face-faded)
+      (set-face 'ivy-virtual                             'nano-face-faded)
+      (set-face 'ivy-yanked-word                         'nano-face-faded)))
+
+  (defun nano-theme--helm ()
+    "Derive helm faces from nano faces."
+    (with-eval-after-load 'helm
+      (set-face 'helm-selection                '(nano-face-strong nano-face-subtle))
+      (set-face 'helm-match                                       'nano-face-strong)
+      (set-face 'helm-source-header                              'nano-face-salient)
+      (set-face 'helm-visible-mark                                'nano-face-strong)))
+
+  (defun nano-theme--helm-swoop ()
+    "Derive helm faces from nano faces."
+    (with-eval-after-load 'helm-swoop
+      (set-face 'helm-swoop-target-line-face   '(nano-face-strong nano-face-subtle))))
+
+  (defun nano-theme--helm-occur ()
+    "Derive helm faces from nano faces."
+    (with-eval-after-load 'helm-occur
+      (set-face 'helm-moccur-buffer                               'nano-face-strong)))
+
+  (defun nano-theme--helm-ff ()
+    "Derive helm faces from nano faces."
+    (with-eval-after-load 'helm-ff
+      (set-face 'helm-ff-file                                      'nano-face-faded)
+      (set-face 'helm-ff-prefix                                   'nano-face-strong)
+      (set-face 'helm-ff-dotted-directory                          'nano-face-faded)
+      (set-face 'helm-ff-directory                                'nano-face-strong)
+      (set-face 'helm-ff-executable                               'nano-face-popout)))
+
+  (defun nano-theme--helm-grep ()
+    "Derive helm faces from nano faces."
+    (with-eval-after-load 'helm-grep
+      (set-face 'helm-grep-match                                  'nano-face-strong)
+      (set-face 'helm-grep-file                                    'nano-face-faded)
+      (set-face 'helm-grep-lineno                                  'nano-face-faded)
+      (set-face 'helm-grep-finish                                'nano-face-default)))
+
+  (defun nano-theme--company ()
+    "Derive company tooltip window from nano faces."
+    (with-eval-after-load 'company
+      (set-face 'company-tooltip-selection                   '(nano-face-strong nano-face-subtle))
+      (set-face-attribute 'company-tooltip-selection nil :background nano-color-popout)
+      
+      (set-face 'company-tooltip                                               'nano-face-subtle)
+
+      (set-face 'company-scrollbar-fg                                          'nano-face-faded)
+      (set-face-attribute 'company-scrollbar-fg nil :background nano-color-foreground)
+      
+      (set-face 'company-scrollbar-bg                                          'nano-face-default)
+      (set-face-attribute 'company-scrollbar-bg nil :background nano-color-faded)
+
+      (set-face 'company-tooltip-common                                        'nano-face-faded)
+      (set-face 'company-tooltip-common-selection            '(nano-face-strong nano-face-subtle))
+      (set-face-attribute 'company-tooltip-common-selection nil :background nano-color-popout)
+      
+      (set-face 'company-tooltip-annotation                                    'nano-face-default)
+      (set-face 'company-tooltip-annotation-selection        '(nano-face-strong nano-face-subtle))))
+
+  (defun nano-theme ()
+    "Derive many, many faces from the core nano faces."
+    (nano-theme--basics)
+    (nano-theme--font-lock)
+    (nano-theme--mode-line)
+    (nano-theme--minibuffer)
+    (nano-theme--buttons)
+    (nano-theme--info)
+    (nano-theme--bookmark)
+    (nano-theme--speedbar)
+    (nano-theme--message)
+    (nano-theme--outline)
+    (nano-theme--customize)
+    (nano-theme--package)
+    (nano-theme--flyspell)
+    (nano-theme--ido)
+    (nano-theme--diff)
+    (nano-theme--term)
+    (nano-theme--calendar)
+    (nano-theme--agenda)
+    (nano-theme--org)
+    (nano-theme--mu4e)
+    (nano-theme--elfeed)
+    (nano-theme--deft)
+    (nano-theme--rst)
+    (nano-theme--markdown)
+    (nano-theme--ivy)
+    (nano-theme--helm)
+    (nano-theme--helm-swoop)
+    (nano-theme--helm-occur)
+    (nano-theme--helm-ff)
+    (nano-theme--helm-grep)
+    (nano-theme--hl-line)
+    (nano-theme--company))
+
+  (defun nano-refresh-theme ()
+    "Convenience function which refreshes the nano-theme.
+    Calls \(nano-faces\) and \(nano-theme\) sequentially."
+    (interactive)
+    (progn
+      (nano-faces)
+      (nano-theme)))
+
+
+  (defun nano-toggle-theme ()
+    "Function to interactively toggle between light and dark nano themes.
+    Requires both to be loaded in order to work."
+    (interactive)
+    (cond ((string= nano-theme-var "light")
+           (nano-theme-set-dark))
+          ((string= nano-theme-var "dark")
+           (nano-theme-set-light))
+          (t nil))
+    (nano-refresh-theme))
+
+  ;; allow italics
+  (set-face-attribute 'italic nil :slant 'italic :foreground 'unspecified)
+
+  (provide 'nano-theme-control)
 #+end_src
 
-*** =marginalia= package
-#+begin_src emacs-lisp :tangle "init.el"
- (use-package marginalia
-  :ensure t
-  :init
-  (marginalia-mode 1))
+**** =nano-themes= - dark theme
+
+dark theme from =nano=. built on the nord dark theme.
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'nano-base-colors)
+
+  (defun nano-theme-set-dark ()
+    "Apply dark Nano theme base."
+    ;; Colors from Nord theme at https://www.nordtheme.com
+    (setq frame-background-mode     'dark)
+    (setq nano-color-foreground "#ECEFF4") ;; Snow Storm 3  / nord  6
+    (setq nano-color-background "#2E3440") ;; Polar Night 0 / nord  0
+    (setq nano-color-highlight  "#3B4252") ;; Polar Night 1 / nord  1
+    (setq nano-color-critical   "#EBCB8B") ;; Aurora        / nord 11
+    (setq nano-color-salient    "#81A1C1") ;; Frost         / nord  9
+    (setq nano-color-strong     "#ECEFF4") ;; Snow Storm 3  / nord  6
+    (setq nano-color-popout     "#D08770") ;; Aurora        / nord 12
+    (setq nano-color-subtle     "#434C5E") ;; Polar Night 2 / nord  2
+    (setq nano-color-faded      "#677691") ;;
+    ;; to allow for toggling of the themes.
+    (setq nano-theme-var "dark")
+    )
+
+  (provide 'nano-theme-dark)
 #+end_src
 
-*** =orderless= package
-#+begin_src emacs-lisp :tangle "init.el"
-(use-package orderless
-  :ensure t
-  :custom
-  (completion-styles '(orderless basic))
-  (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles partial-completion)))))
+**** =nano-themes= - light theme
+
+light theme from =nano=. based on material colors
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'nano-base-colors)
+
+  (defun nano-theme-set-light ()
+    "Apply light Nano theme base."
+    ;; Colors from Material design at https://material.io/
+    (setq frame-background-mode    'light)
+    (setq nano-color-foreground "#37474F") ;; Blue Grey / L800
+    (setq nano-color-background "#FFFFFF") ;; White
+    (setq nano-color-highlight  "#FAFAFA") ;; Very Light Grey
+    (setq nano-color-critical   "#FF6F00") ;; Amber / L900
+    (setq nano-color-salient    "#673AB7") ;; Deep Purple / L500
+    (setq nano-color-strong     "#000000") ;; Black
+    (setq nano-color-popout     "#FFAB91") ;; Deep Orange / L200
+    (setq nano-color-subtle     "#ECEFF1") ;; Blue Grey / L50
+    (setq nano-color-faded      "#B0BEC5") ;; Blue Grey / L200
+    ;; to allow for toggling of the themes.
+    (setq nano-theme-var "light")
+    )
+
+  (provide 'nano-theme-light)
+
 #+end_src
-*** =savehist= package
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package savehist
-   :ensure nil
-   :config
-   (setq history-length 1000
-         history-delete-duplicates t
-         savehist-save-minibuffer-history t)
-   (dolist (var '(extended-command-history
-                  search-ring
-                  regexp-search-ring
-                  consult--buffer-history
-                  recentf-list))
-     (add-to-list 'savehist-additional-variables var)))
+*** =nano= - the default nano behaviors
 
-  (elpaca-wait)
+this sets up the default nano behaviors, with some slight tweaking on my end. i just removed lines of code that i did not think i needed.
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  ;; No file dialog
+  (setq use-file-dialog nil)
+
+  ;; No dialog box
+  (setq use-dialog-box nil)
+
+  ;; No popup windows
+  ;; (setq pop-up-windows nil)
+
+  ;; No empty line indicators
+  (setq indicate-empty-lines nil)
+
+  ;; No cursor in inactive windows
+  (setq cursor-in-non-selected-windows nil)
+
+  ;; Text mode is initial mode
+  ;; (setq initial-major-mode 'text-mode)
+
+  ;; Text mode is default major mode
+  ;; (setq default-major-mode 'text-mode
+
+  ;; Moderate font lock
+  (setq font-lock-maximum-decoration nil)
+
+  ;; No limit on font lock
+  (setq font-lock-maximum-size nil)
+
+  ;; No line break space points
+  (setq auto-fill-mode nil)
+
+  ;; Fill column at 80
+  (setq fill-column 80)
+
+  ;; No confirmation for visiting non-existent files
+  (setq confirm-nonexistent-file-or-buffer nil)
+
+  ;; Use RET to open org-mode links, including those in quick-help.org
+  (setq org-return-follows-link t)
+
+  ;; Tab behavior
+  ;; (setq tab-always-indent 'complete)
+  ;; (global-company-mode)
+  ;; (define-key company-mode-map [remap indent-for-tab-command]
+  ;;   #'company-indent-or-complete-common)
+
+  ;; Pixel scroll (as opposed to char scrool)
+  ;; (pixel-scroll-mode t)
+
+  ;; y/n for  answering yes/no questions
+  (fset 'yes-or-no-p 'y-or-n-p)
+
+  ;; No tabs
+  (setq-default indent-tabs-mode nil)
+
+  ;; Tab.space equivalence
+  (setq-default tab-width 4)
+
+  ;; Size of temporary buffers
+  (temp-buffer-resize-mode)
+  (setq temp-buffer-max-height 8)
+
+  ;; Minimum window height
+  (setq window-min-height 1)
+
+  ;; Buffer encoding
+  (set-default-coding-systems 'utf-8)
+  (set-language-environment   'utf-8)
+
+  ;; Unique buffer names
+  (require 'uniquify)
+  (setq uniquify-buffer-name-style 'reverse
+        uniquify-separator " • "
+        uniquify-after-kill-buffer-p t
+        uniquify-ignore-buffers-re "^\\*")
+
+  ;; Default shell in term
+  (unless
+      (or (eq system-type 'windows-nt)
+          (not (file-exists-p "/bin/zsh")))
+    (setq-default shell-file-name "/bin/zsh")
+    (setq explicit-shell-file-name "/bin/zsh"))
+
+  ;; Kill term buffer when exiting
+  (defadvice term-sentinel (around my-advice-term-sentinel (proc msg))
+    (if (memq (process-status proc) '(signal exit))
+        (let ((buffer (process-buffer proc)))
+          ad-do-it
+          (kill-buffer buffer))
+      ad-do-it))
+  (ad-activate 'term-sentinel)
+
+  (provide 'nano-defaults)
+#+end_src
+*** =nano= - the sessions
+
+sets up how nano will handle various saving of sessions & history
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  ;; save miscellaneous history
+  (setq savehist-additional-variables
+        '(kill-ring
+          command-history
+  	    set-variable-value-history
+  	    custom-variable-history   
+  	    query-replace-history     
+  	    read-expression-history   
+  	    minibuffer-history        
+  	    read-char-history         
+  	    face-name-history         
+          bookmark-history          
+          ivy-history               
+  	    counsel-M-x-history       
+  	    file-name-history         
+          counsel-minibuffer-history))
+  (setq history-length 250)
+  (setq kill-ring-max 25)
+  (put 'minibuffer-history         'history-length 50)
+  (put 'file-name-history          'history-length 50)
+  (put 'set-variable-value-history 'history-length 25)
+  (put 'custom-variable-history    'history-length 25)
+  (put 'query-replace-history      'history-length 25)
+  (put 'read-expression-history    'history-length 25)
+  (put 'read-char-history          'history-length 25)
+  (put 'face-name-history          'history-length 25)
+  (put 'bookmark-history           'history-length 25)
+  (put 'ivy-history                'history-length 25)
+  (put 'counsel-M-x-history        'history-length 25)
+  (put 'counsel-minibuffer-history 'history-length 25)
+  (setq savehist-file "~/.emacs.d/modules/nano/session/nano-savehist")
+  (savehist-mode 1)
+
+  ;; remove text properties for kill ring entries
+  ;; See https://emacs.stackexchange.com/questions/4187
+  (defun unpropertize-kill-ring ()
+    (setq kill-ring (mapcar 'substring-no-properties kill-ring)))
+  (add-hook 'kill-emacs-hook 'unpropertize-kill-ring)
+
+  ;; recentf files 
+  (setq recentf-max-menu-items 25)
+  (setq recentf-save-file     "~/.emacs.d/modules/nano/session/nano-recentf")
+  (recentf-mode 1)
+
+  ;; bookmarks
+  (setq bookmark-default-file "~/.emacs.d/modules/nano/session/nano-bookmark")
+
+  (provide 'nano-session)
 #+end_src
 
-*** =corfu= package
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package corfu
-  :ensure t
-  :custom
-  (corfu-auto        t)
-  (corfu-auto-delay  0)
-  (corfu-preview-current t)
-  (corfu-auto-prefix 1)
-  (corfu-cycle       t)
-  (corfu-quit-no-match t)
-  :config
-  (corfu-popupinfo-mode)
-  :init
-  (global-corfu-mode))
+*** =nano= - the modeline
+
+Nano mode line format:
+
+[ status | name (primary)               secondary | item1 | item2 ]
+
+#+begin_src emacs-lisp
+  ;; -*- lexical-binding: t; -*-
+
+  (require 'subr-x)
+
+  ;; -------------------------------------------------------------------
+  (defun vc-branch ()
+    (if vc-mode
+        (let ((backend (vc-backend buffer-file-name)))
+          (concat "#" (substring-no-properties vc-mode
+                                               (+ (if (eq backend 'Hg) 2 3) 2))))  nil))
+
+  (defun nano-mode-name ()
+    (if (listp mode-name) (car mode-name) mode-name))
+
+  ;; From https://amitp.blogspot.com/2011/08/emacs-custom-mode-line.html
+  ;; ---------------------------------------------------------------------
+  (defun shorten-directory (dir max-length)
+    "Show up to `max-length' characters of a directory name `dir'."
+    (let ((path (reverse (split-string (abbreviate-file-name dir) "/")))
+          (output ""))
+      (when (and path (equal "" (car path)))
+        (setq path (cdr path)))
+      (while (and path (< (length output) (- max-length 4)))
+        (setq output (concat (car path) "/" output))
+        (setq path (cdr path)))
+      (when path
+        (setq output (concat "…/" output)))
+      output))
+
+  ;; -------------------------------------------------------------------
+  (defun nano-modeline-compose (status name primary secondary)
+    "Compose a string with provided information"
+    (let* ((char-width    (window-font-width nil 'header-line))
+           (window        (get-buffer-window (current-buffer)))
+           (space-up       +0.15)
+           (space-down     -0.20)
+  	     (prefix (cond ((string= status "RO")
+  			            (propertize (if (window-dedicated-p)" -- " " RO ")
+                                      'face 'nano-face-header-popout))
+                         ((string= status "**")
+  			            (propertize (if (window-dedicated-p)" -- " " ** ")
+                                      'face 'nano-face-header-critical))
+                         ((string= status "RW")
+  			            (propertize (if (window-dedicated-p)" -- " " RW ")
+                                      'face 'nano-face-header-faded))
+                         (t (propertize status 'face 'nano-face-header-popout))))
+           (left (concat
+                  (propertize " "  'face 'nano-face-header-default
+  			                'display `(raise ,space-up))
+                  (propertize name 'face 'nano-face-header-strong)
+                  (propertize " "  'face 'nano-face-header-default
+  			                'display `(raise ,space-down))
+  		        (propertize primary 'face 'nano-face-header-default)))
+           (right (concat secondary " "))
+           (available-width (- (window-total-width)
+  			                 (length prefix) (length left) (length right)
+  			                 (/ (window-right-divider-width) char-width)))
+  	     (available-width (max 1 available-width)))
+      (concat prefix
+  	        left
+  	        (propertize (make-string available-width ?\ )
+                          'face 'nano-face-header-default)
+  	        (propertize right 'face `(:inherit nano-face-header-default
+                                                 :foreground ,nano-color-faded)))))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-mu4e-dashboard-mode-p ()
+    (bound-and-true-p mu4e-dashboard-mode))
+
+  (defun nano-modeline-mu4e-dashboard-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Mail"
+                           (nano-modeline-mu4e-context)
+                           (format "%d messages" (plist-get mu4e~server-props :doccount))
+                           ))
+
+  ;; ---------------------------------------------------------------------
+
+  ;; since the EIN library itself is constantly re-rendering the notebook, and thus
+  ;; re-setting the header-line-format, we cannot use the nano-modeline function to set
+  ;; the header format in a notebook buffer.  Fortunately, EIN exposes the
+  ;; ein:header-line-format variable for just this purpose.
+
+  (with-eval-after-load 'ein
+    (defun nano-modeline-ein-notebook-mode ()
+      (let ((buffer-name (format-mode-line "%b")))
+        (nano-modeline-compose (if (ein:notebook-modified-p) "**" "RW")
+                               buffer-name
+                               ""
+                               (ein:header-line))))
+    (setq ein:header-line-format '((:eval (nano-modeline-ein-notebook-mode)))))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-elfeed-search-mode-p ()
+    (derived-mode-p 'elfeed-search-mode))
+
+  (defun nano-modeline-elfeed-search-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Elfeed"
+                           (concat "(" (elfeed-search--header)  ")")
+                           ""))
+
+  ;; Elfeed (regular header)
+  (with-eval-after-load 'elfeed
+    (defun elfeed-setup-header ()
+      (setq header-line-format (default-value 'header-line-format)))
+    (setq elfeed-search-header-function #'elfeed-setup-header))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-elfeed-show-mode-p ()
+    (derived-mode-p 'elfeed-show-mode))
+
+  (defun nano-modeline-elfeed-show-mode ()
+    (let* ((title        (elfeed-entry-title elfeed-show-entry))
+           (tags         (elfeed-entry-tags elfeed-show-entry))
+           (tags-str     (mapconcat #'symbol-name tags ", "))
+           (date         (seconds-to-time (elfeed-entry-date elfeed-show-entry)))
+           (feed         (elfeed-entry-feed elfeed-show-entry))
+           (feed-title   (plist-get (elfeed-feed-meta feed) :title))
+           (entry-author (elfeed-meta elfeed-show-entry :author)))
+      (nano-modeline-compose (nano-modeline-status)
+                             (s-truncate 40 title "…")
+                             (concat "(" tags-str ")")
+                             feed-title)))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-calendar-mode-p ()
+    (derived-mode-p 'calendar-mode))
+
+  (defun nano-modeline-calendar-mode () "")
+
+  ;; Calendar (no header, only overline)
+  (with-eval-after-load 'calendar
+    (defun calendar-setup-header ()
+      (setq header-line-format "")
+      (face-remap-add-relative
+       'header-line `(:overline ,(face-foreground 'default)
+                                :height 0.5
+                                :background ,(face-background 'default))))
+    (add-hook 'calendar-initial-window-hook #'calendar-setup-header)
+
+    ;; From https://emacs.stackexchange.com/questions/45650
+    (add-to-list 'display-buffer-alist
+                 `(,(rx string-start "*Calendar*" string-end)
+                   (display-buffer-below-selected))))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-org-capture-mode-p ()
+    (bound-and-true-p org-capture-mode))
+
+  (defun nano-modeline-org-capture-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Capture"
+                           "(org)"
+                           ""))
+
+  (with-eval-after-load 'org-capture
+    (defun org-capture-turn-off-header-line ()
+      (setq-local header-line-format (default-value 'header-line-format))
+      ;; (fit-window-to-buffer nil nil 8)
+      ;; (face-remap-add-relative 'header-line '(:background "#ffffff"))
+      (message nil))
+    (add-hook 'org-capture-mode-hook
+              #'org-capture-turn-off-header-line))
+
+  ;; ---------------------------------------------------------------------
+  (setq Info-use-header-line nil)
+  (defun nano-modeline-info-breadcrumbs ()
+    (let ((nodes (Info-toc-nodes Info-current-file))
+          (cnode Info-current-node)
+  	    (node Info-current-node)
+          (crumbs ())
+          (depth Info-breadcrumbs-depth)
+  	    line)
+      (while  (> depth 0)
+        (setq node (nth 1 (assoc node nodes)))
+        (if node (push node crumbs))
+        (setq depth (1- depth)))
+      (setq crumbs (cons "Top" (if (member (pop crumbs) '(nil "Top"))
+  			                     crumbs (cons nil crumbs))))
+      (forward-line 1)
+      (dolist (node crumbs)
+        (let ((text
+  	         (if (not (equal node "Top")) node
+  	           (format "%s"
+  		               (if (stringp Info-current-file)
+  			               (file-name-sans-extension
+  			                (file-name-nondirectory Info-current-file))
+  			             Info-current-file)))))
+  	    (setq line (concat line (if (null line) "" " > ")
+                             (if (null node) "..." text)))))
+      (if (and cnode (not (equal cnode "Top")))
+          (setq line (concat line (if (null line) "" " > ") cnode)))
+      line))
+
+  (defun nano-modeline-info-mode-p ()
+    (derived-mode-p 'Info-mode))
+
+  (defun nano-modeline-info-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Info"
+                           (concat "("
+                                   (nano-modeline-info-breadcrumbs)
+                                   ")")
+                           ""))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-org-agenda-mode-p ()
+    (derived-mode-p 'org-agenda-mode))
+
+  (defun nano-modeline-org-agenda-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Agenda"
+                           ""
+                           (format-time-string "%A %-e %B %Y")))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-term-mode-p ()
+    (derived-mode-p 'term-mode))
+
+  (defun nano-modeline-vterm-mode-p ()
+    (derived-mode-p 'vterm-mode))
+
+  (defun nano-modeline-term-mode ()
+    (nano-modeline-compose " >_ "
+                           "Terminal"
+                           (concat "(" shell-file-name ")")
+                           (shorten-directory default-directory 32)))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-mu4e-main-mode-p ()
+    (derived-mode-p 'mu4e-main-mode))
+
+  (defun nano-modeline-mu4e-main-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Mail"
+                           (nano-modeline-mu4e-context)
+                           (format-time-string "%A %d %B %Y, %H:%M")))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-mu4e-headers-mode-p ()
+    (derived-mode-p 'mu4e-headers-mode))
+
+  (defun nano-modeline-mu4e-headers-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           (mu4e~quote-for-modeline mu4e~headers-last-query)
+                           ""
+                           ""))
+
+  (with-eval-after-load 'mu4e
+    (defun mu4e~header-line-format () (nano-modeline)))
+
+  ;; ---------------------------------------------------------------------
+  (setq mu4e-modeline-max-width 72)
+
+  (defun nano-modeline-mu4e-view-mode-p ()
+    (derived-mode-p 'mu4e-view-mode))
+
+  (defun nano-modeline-mu4e-view-mode ()
+    (let* ((msg     (mu4e-message-at-point))
+           (subject (mu4e-message-field msg :subject))
+           (from    (mu4e~headers-contact-str (mu4e-message-field msg :from)))
+           (date     (mu4e-message-field msg :date)))
+      (nano-modeline-compose (nano-modeline-status)
+                             (s-truncate 40 subject "…")
+                             ""
+                             from)))
+
+  (defun nano-modeline-mu4e-view-hook ()
+    (setq header-line-format "%-")
+    (face-remap-add-relative 'header-line
+                             '(:background "#ffffff"
+                                           :underline nil
+                                           :box nil
+                                           :height 1.0)))
+  (add-hook 'mu4e-view-mode-hook #'nano-modeline-mu4e-view-hook)
+
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-nano-help-mode-p ()
+    (derived-mode-p 'nano-help-mode))
+
+  (defun nano-modeline-nano-help-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "GNU Emacs / N Λ N O"
+                           "(help)"
+                           ""))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-message-mode-p ()
+    (derived-mode-p 'message-mode))
+
+  (defun nano-modeline-message-mode ()
+    (nano-modeline-compose (nano-modeline-status)
+                           "Message" "(draft)" ""))
+
+
+  ;; ---------------------------------------------------------------------
+  (setq org-mode-line-string nil)
+  (with-eval-after-load 'org-clock
+    (add-hook 'org-clock-out-hook
+              '(lambda () (setq org-mode-line-string nil)
+                 (force-mode-line-update))))
+
+  (defun nano-modeline-org-clock-mode-p ()
+    org-mode-line-string)
+
+  (defun nano-modeline-org-clock-mode ()
+    (let ((buffer-name (format-mode-line "%b"))
+          (mode-name   (nano-mode-name))
+          (branch      (vc-branch))
+          (position    (format-mode-line "%l:%c")))
+      (nano-modeline-compose (nano-modeline-status)
+                             buffer-name
+                             (concat "(" mode-name
+                                     (if branch (concat ", "
+                                                        (propertize branch 'face 'italic)))
+                                     ")" )
+                             org-mode-line-string)))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-docview-mode-p ()
+    (derived-mode-p 'doc-view-mode))
+
+  (defun nano-modeline-docview-mode ()
+    (let ((buffer-name (format-mode-line "%b"))
+  	    (mode-name   (nano-mode-name))
+  	    (branch      (vc-branch))
+  	    (page-number (concat
+  		              (number-to-string (doc-view-current-page)) "/"
+  		              (or (ignore-errors
+  			                (number-to-string (doc-view-last-page-number)))
+  			              "???"))))
+      (nano-modeline-compose
+       (nano-modeline-status)
+       buffer-name
+       (concat "(" mode-name
+  	         (if branch (concat ", "
+  				                (propertize branch 'face 'italic)))
+  	         ")" )
+       page-number)))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-pdf-view-mode-p ()
+    (derived-mode-p 'pdf-view-mode))
+
+  (defun nano-modeline-pdf-view-mode ()
+    (let ((buffer-name (format-mode-line "%b"))
+  	    (mode-name   (nano-mode-name))
+  	    (branch      (vc-branch))
+  	    (page-number (concat
+  		              (number-to-string (pdf-view-current-page)) "/"
+  		              (or (ignore-errors
+  			                (number-to-string (pdf-cache-number-of-pages)))
+  			              "???"))))
+      (nano-modeline-compose
+       "RW"
+       buffer-name
+       (concat "(" mode-name
+  	         (if branch (concat ", "
+  				                (propertize branch 'face 'italic)))
+  	         ")" )
+       page-number)))
+
+  ;; ---------------------------------------------------------------------
+  (defun buffer-menu-mode-header-line ()
+    (face-remap-add-relative
+     'header-line `(:background ,(face-background 'nano-face-subtle))))
+  (add-hook 'Buffer-menu-mode-hook
+            #'buffer-menu-mode-header-line)
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-completion-list-mode-p ()
+    (derived-mode-p 'completion-list-mode))
+
+  (defun nano-modeline-completion-list-mode ()
+    (let ((buffer-name (format-mode-line "%b"))
+          (mode-name   (nano-mode-name))
+          (position    (format-mode-line "%l:%c")))
+
+      (nano-modeline-compose (nano-modeline-status)
+                             buffer-name "" position)))
+  ;; ---------------------------------------------------------------------
+  (with-eval-after-load 'deft
+    (defun deft-print-header ()
+      (force-mode-line-update)
+      (widget-insert "\n")))
+
+  (defun nano-modeline-deft-mode-p ()
+    (derived-mode-p 'deft-mode))
+
+  (defun nano-modeline-deft-mode ()
+    (let ((prefix " DEFT ")
+          (primary "Notes")
+          (filter  (if deft-filter-regexp
+                       (deft-whole-filter-regexp) "<filter>"))
+          (matches (if deft-filter-regexp
+                       (format "%d matches" (length deft-current-files))
+                     (format "%d notes" (length deft-all-files)))))
+      (nano-modeline-compose " DEFT "
+                             primary filter matches)))
+
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-prog-mode-p ()
+    (derived-mode-p 'prog-mode))
+
+  (defun nano-modeline-text-mode-p ()
+    (derived-mode-p 'text-mode))
+
+  (defun nano-modeline-default-mode ()
+    (let ((buffer-name (format-mode-line "%b"))
+          (mode-name   (nano-mode-name))
+          (branch      (vc-branch))
+          (position    (format-mode-line "%l:%c")))
+      (nano-modeline-compose (nano-modeline-status)
+                             buffer-name
+                             (concat "(" mode-name
+                                     (if branch (concat ", "
+                                                        (propertize branch 'face 'italic)))
+                                     ")" )
+                             position)))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-status ()
+    "Return buffer status: read-only (RO), modified (**) or read-write (RW)"
+
+    (let ((read-only   buffer-read-only)
+          (modified    (and buffer-file-name (buffer-modified-p))))
+      (cond (modified  "**") (read-only "RO") (t "RW"))))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-mu4e-context ()
+    "Return the current mu4e context as a non propertized string."
+
+    (if (> (length (mu4e-context-label)) 0)
+        (concat "(" (substring-no-properties (mu4e-context-label) 1 -1) ")")
+      "(none)"))
+
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline ()
+    "Install a header line whose content is dependent on the major mode"
+    (interactive)
+    (setq-default header-line-format
+                  '((:eval
+                     (cond ((nano-modeline-prog-mode-p)            (nano-modeline-default-mode))
+                           ((nano-modeline-message-mode-p)         (nano-modeline-message-mode))
+                           ((nano-modeline-elfeed-search-mode-p)   (nano-modeline-elfeed-search-mode))
+                           ((nano-modeline-elfeed-show-mode-p)     (nano-modeline-elfeed-show-mode))
+                           ((nano-modeline-deft-mode-p)            (nano-modeline-deft-mode))
+                           ((nano-modeline-info-mode-p)            (nano-modeline-info-mode))
+                           ((nano-modeline-calendar-mode-p)        (nano-modeline-calendar-mode))
+                           ((nano-modeline-org-capture-mode-p)     (nano-modeline-org-capture-mode))
+                           ((nano-modeline-org-agenda-mode-p)      (nano-modeline-org-agenda-mode))
+                           ((nano-modeline-org-clock-mode-p)       (nano-modeline-org-clock-mode))
+                           ((nano-modeline-term-mode-p)            (nano-modeline-term-mode))
+                           ((nano-modeline-vterm-mode-p)           (nano-modeline-term-mode))
+                           ((nano-modeline-mu4e-dashboard-mode-p)  (nano-modeline-mu4e-dashboard-mode))
+                           ((nano-modeline-mu4e-main-mode-p)       (nano-modeline-mu4e-main-mode))
+                           ((nano-modeline-mu4e-headers-mode-p)    (nano-modeline-mu4e-headers-mode))
+                           ;;         ((nano-modeline-mu4e-view-mode-p)       (nano-modeline-mu4e-view-mode))
+                           ((nano-modeline-text-mode-p)            (nano-modeline-default-mode))
+                           ((nano-modeline-pdf-view-mode-p)        (nano-modeline-pdf-view-mode))
+  	                     ((nano-modeline-docview-mode-p)         (nano-modeline-docview-mode))
+  	                     ((nano-modeline-completion-list-mode-p) (nano-modeline-completion-list-mode))
+                           ((nano-modeline-nano-help-mode-p)       (nano-modeline-nano-help-mode))
+                           (t                                      (nano-modeline-default-mode)))))))
+
+  ;; ---------------------------------------------------------------------
+  (defun nano-modeline-update-windows ()
+    "Modify the mode line depending on the presence of a window
+  below or a buffer local variable 'no-mode-line'."
+    (dolist (window (window-list))
+      (with-selected-window window
+  	  (with-current-buffer (window-buffer window)
+          (if (or (not (boundp 'no-mode-line)) (not no-mode-line))
+              (set-window-parameter window 'mode-line-format
+                                    (cond ((not mode-line-format) 'none)
+                                          ((one-window-p t 'visible) (list ""))
+                                          ((eq (window-in-direction 'below) (minibuffer-window)) (list ""))
+                                          ((not (window-in-direction 'below)) (list ""))
+                                          (t 'none))))))))
+
+  (add-hook 'window-configuration-change-hook 'nano-modeline-update-windows)
+
+  (setq eshell-status-in-modeline nil)
+  ;; (setq-default mode-line-format (list "%-"))
+  (setq-default mode-line-format "")
+  (nano-modeline)
+
+  (provide 'nano-modeline)
 #+end_src
 
-** dired file manager stuffs
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package dired
-    :ensure nil
-    :commands (dired)
-    :hook
-    ((dired-mode . dired-hide-details-mode)
-     (dired-mode . hl-line-mode)
-     (dired-mode-hook . g-dired-setup-view))
-    :config
-    (setq dired-recursive-copies 'always)
-    (setq dired-recursive-deletes 'always)
-    (setq delete-by-moving-to-trash t)
-    (setq dired-dwim-target t))
-
-  (use-package dired-subtree
-    :demand t
-    :after dired
-    :bind
-    ( :map dired-mode-map 
-      ("<tab>" . dired-subtree-toggle)
-      ("TAB" . dired-subtree-toggle)
-      ("<backtab>" . dired-subtree-remove)
-      ("S-TAB" . dired-subtree-remove))
-    :config
-    (setq dired-subtree-use-backgrounds nil))
-
-  (use-package trashed
-    :demand t
-    :commands (trashed)
-    :config
-    (setq trashed-action-confirmer 'y-or-n-p)
-    (setq trashed-use-header-line t)
-    (setq trashed-sort-key '("Date deleted" . t))
-    (setq trashed-date-format "%Y-%m-%d %H:%M:%S"))
-#+end_src**
-** org mode stuffs
-*** set org directory
-#+begin_src emacs-lisp :tangle "init.el"
-  (setq org-directory "~/notes/org/")  
-#+end_src
-*** =org-modern= package
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package org-modern
-    :ensure t
-    :custom
-    (org-modern-hide-stars nil)
-    (org-modern-table nil)
-    (org-modern-list '((?* . "•") (?+ . "‣")))
-    :hook
-    (org-mode . org-modern-mode)
-    (org-agenda-finalize . org-modern-agenda))
-
-  (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜"))
-
-  (use-package org-modern-indent
-    :ensure (:host github :repo "jdtsmith/org-modern-indent")
-    :init
-    (setq org-startup-indented t) ; Required: Enables org-indent-mode by default
-    :config
-    ;; Add late to the hook (priority 90) as recommended by the developer
-    (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
-
-  (global-org-modern-mode)
-#+end_src
-
-*** =org-roam= package
-#+begin_src emacs-lisp :tangle "init.el"
-  (use-package org-roam
-  :ensure t
-  :custom
-  ;; Define your primary notes directory (change this path)
-  (org-roam-directory (file-truename "~/notes/roam"))
-  :bind (("C-c n f" . org-roam-node-find)
-         ("C-c n i" . org-roam-node-insert)
-         ("C-c n c" . org-roam-capture)
-         ;; Optional: Keybindings for UI and database sync
-         ("C-c n l" . org-roam-buffer-toggle)
-         ("C-c n g" . org-roam-graph)
-         ("C-c n db" . org-roam-db-sync))
-  :config
-  ;; Initialize the database and background synchronization
-  (org-roam-db-autosync-mode))
-#+end_src

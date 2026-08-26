@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/magit/docs/magit-section.texi

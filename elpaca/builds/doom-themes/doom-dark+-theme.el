@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/themes/themes/doom-dark+-theme.el

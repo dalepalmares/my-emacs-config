@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/themes/extensions/doom-themes-ext-visual-bell.el

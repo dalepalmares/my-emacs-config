@@ -1,1 +1,0 @@
-/Users/dale/.emacs.d/elpaca/sources/nerd-icons/nerd-icons.el
