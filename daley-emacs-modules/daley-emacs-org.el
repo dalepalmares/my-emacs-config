@@ -14,11 +14,13 @@
   (setq org-log-done 'time)
   (setq org-log-into-drawer t)
   (setq org-refile-targets
-        '((nil :maxlevel . 1)
-	  (org-agenda-files :maxlevel . 1)))
+        '((nil :maxlevel . 3)
+	  (org-agenda-files :maxlevel . 3)))
   (setq org-refile-use-outline-path 'file)
   (setq org-outline-path-complete-in-steps nil)
 
+  (setq org-tags-column 0)
+  
   ;; disable org-capture & org-refile from generating bookmarks
   (setq org-capture-bookmark nil)
   (setq org-bookmark-names-plist nil)
@@ -86,7 +88,12 @@
       `(("A" "Daily agenda and top priority tasks"
        	 ,daley-org-custom-daily-agenda)))
 
+; set org agenda headers to be bigger
 (custom-set-faces
  '(org-agenda-structure ((t (:family "Aporetic Serif Mono" :height 1.5 :weight bold)))))
+
+; set face for tags to always be fixed-pitch
+(custom-set-faces
+ '(org-tag ((t (:inherit fixed-pitch :weight bold)))))
 
 (provide 'daley-emacs-org)
