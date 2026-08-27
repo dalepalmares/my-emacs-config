@@ -92,8 +92,4 @@
 (custom-set-faces
  '(org-agenda-structure ((t (:family "Aporetic Serif Mono" :height 1.5 :weight bold)))))
 
-; set face for tags to always be fixed-pitch
-(custom-set-faces
- '(org-tag ((t (:inherit fixed-pitch :weight bold)))))
-
 (provide 'daley-emacs-org)
