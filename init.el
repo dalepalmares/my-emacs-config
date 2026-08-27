@@ -55,9 +55,14 @@
 
 (let ((mono-spaced-font "Monospace")
       (proportionately-spaced-font "Sans"))
-  (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
-  (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-  (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0))
+  (if (eq system-type 'darwin)
+      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
+    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)
+
+    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
+    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)))
 
 (use-package doric-themes
   :ensure t

@@ -1,6 +1,6 @@
 #+startup: content indent
 
-this is my attempt at a literate configuration setup with emacs.
+this is my attempt at a literate configuration setup with emacs. heavy inspiration is taken from prot's own literate config for emacs
 
 * =early-init.el= stuffs
 
@@ -33,24 +33,34 @@ the /frame-resize-pixelwise/ & /frame-inhibit-implied-resize/ settings are there
 #+end_src
 
 ** =early-init.el= - macos opacity window
+:LOGBOOK:
+- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:21]
+- State "CANCEL"     from "DONE"       [2026-08-27 Thu 01:21]
+- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:21]
+- State "CANCEL"     from "TODO"       [2026-08-27 Thu 01:20]
+- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:20]
+- State "CANCEL"     from "TODO"       [2026-08-27 Thu 01:20]
+:END:
 
 applying macos glass look for the backgroud, purely for aesthetic reasons.
 
 #+begin_src emacs-lisp :tangle "early-init.el"
-  (defun daley/apply-frame-transparency (&optional frame)
-    "Apply macOS transparency parameters to FRAME (defaults to selected frame)."
-    (with-selected-frame (or frame (selected-frame))
-      (set-frame-parameter nil 'alpha-background 0.7)
-      (set-frame-parameter nil 'ns-background-blur 30)
-      (set-frame-parameter nil 'ns-alpha-elements '(ns-alpha-all))))
+  (when (eq system-type 'darwin)
+    (defun daley/apply-frame-transparency (&optional frame)
+      "Apply macOS transparency parameters to FRAME (defaults to selected frame)."
+      (with-selected-frame (or frame (selected-frame))
+        (set-frame-parameter nil 'alpha-background 0.7)
+        (set-frame-parameter nil 'ns-background-blur 30)
+        (set-frame-parameter nil 'ns-alpha-elements '(ns-alpha-all))))
 
-  (add-hook 'after-make-frame-functions #'daley/apply-frame-transparency)
-  (unless (daemonp)
-    (add-hook 'window-setup-hook #'daley/apply-frame-transparency))
+    (add-hook 'after-make-frame-functions #'daley/apply-frame-transparency)
+    (unless (daemonp)
+      (add-hook 'window-setup-hook #'daley/apply-frame-transparency))
 
-  (when (display-graphic-p)
-    (daley/apply-frame-transparency))
+    (when (display-graphic-p)
+      (daley/apply-frame-transparency)))
 #+end_src
+
 
 ** =early-init.el= - ui stuffs
 
@@ -245,9 +255,14 @@ i am using the aporetic font family from prot here.
 #+begin_src emacs-lisp :tangle "init.el"
   (let ((mono-spaced-font "Monospace")
         (proportionately-spaced-font "Sans"))
-    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
-    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0))
+    (if (eq system-type 'darwin)
+        (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
+      (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
+      (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)
+
+      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
+      (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
+      (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)))
 #+end_src
 
 ** =init.el= - set up theme
