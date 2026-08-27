@@ -53,16 +53,22 @@
     (keyboard-quit))))
 (define-key global-map (kbd "C-g") #'daley/keyboard-quit-dwim)
 
-(let ((mono-spaced-font "Monospace")
-      (proportionately-spaced-font "Sans"))
-  (if (eq system-type 'darwin)
-      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
+(let ((mono-spaced-font "Aporetic Sans Mono")
+      (proportionately-spaced-font "Aporetic Sans"))
+  (when (eq system-type 'darwin)
+    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
     (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))
 
+  (when (eq system-type 'gnu/linux)
     (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
     (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)))
+    (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0)))
+
+(setq-default line-spacing 0.2) ; set the default line height
+
+;; activate variable-pitch-mode by default
+(add-hook 'text-mode-hook #'variable-pitch-mode)
 
 (use-package doric-themes
   :ensure t

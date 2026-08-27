@@ -1,3 +1,4 @@
+#+title: my literate emacs config
 #+startup: content indent
 
 this is my attempt at a literate configuration setup with emacs. heavy inspiration is taken from prot's own literate config for emacs
@@ -244,16 +245,22 @@ i am basically trying to be more organized by separating the code i wrote (=dale
 i am using the aporetic font family from prot here.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  (let ((mono-spaced-font "Monospace")
-        (proportionately-spaced-font "Sans"))
-    (if (eq system-type 'darwin)
-        (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
+  (let ((mono-spaced-font "Aporetic Sans Mono")
+        (proportionately-spaced-font "Aporetic Sans"))
+    (when (eq system-type 'darwin)
+      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
       (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)
+      (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))
 
+    (when (eq system-type 'gnu/linux)
       (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
       (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Atkinson Hyperlegible" :height 1.0)))
+      (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0)))
+
+  (setq-default line-spacing 0.2) ; set the default line height
+
+  ;; activate variable-pitch-mode by default
+  (add-hook 'text-mode-hook #'variable-pitch-mode)
 #+end_src
 
 ** =init.el= - set up theme
@@ -434,26 +441,92 @@ configs for my org setup. i hope to develop this over time. starting simple at f
 
   (use-package org
     :ensure nil
+    :bind (("C-c a" . org-agenda))
     :config
     (setq org-directory "~/Notes/")
     (setq org-agenda-files (list org-directory))
-    
+
+    (setq org-hide-emphasis-markers t)
     (setq org-indent-mode t)
     (setq org-M-RET-may-split-line '((default . nil)))
     (setq org-insert-heading-respect-content t)
     (setq org-log-done 'time)
     (setq org-log-into-drawer t)
     (setq org-refile-targets
-  	'((nil :maxlevel . 9)
-  	  (org-agenda-files :maxlevel . 9)))
-    (setq org-refile-use-outline-path t)
+          '((nil :maxlevel . 3)
+  	  (org-agenda-files :maxlevel . 3)))
+    (setq org-refile-use-outline-path 'file)
+    (setq org-outline-path-complete-in-steps nil)
 
     ;; disable org-capture & org-refile from generating bookmarks
     (setq org-capture-bookmark nil)
     (setq org-bookmark-names-plist nil)
     
     (setq org-todo-keywords
-  	'((sequence "TODO(t)" "|" "CANCEL(c!)" "DONE(d!)"))))
+          '((sequence "TODO(t)" "WAIT(w!)" "|" "CANCEL(c!)" "DONE(d!)"))))
+
+  (defun daley-org-agenda-include-priority-no-timestamp ()
+    "Return nil if heading has a priority but no timestamp.
+      Otherwise, return the buffer position from where the search should
+      continue, per `org-agenda-skip-function'."
+    (let ((point (point)))
+      (if (and (eq (nth 3 (org-heading-components)) ?A)
+               (not (org-get-deadline-time point))
+               (not (org-get-scheduled-time point)))
+          nil
+        (line-beginning-position 2))))
+
+  (defvar daley-org-custom-daily-agenda
+    `((tags-todo "*"
+  	       ((org-agenda-overriding-header "\n—————————— IMPORTANT TASKS WITHOUT A DATE ——————————\n")
+      		(org-agenda-skip-function #'daley-org-agenda-include-priority-no-timestamp)
+         		(org-agenda-block-separator nil)))
+      (agenda "" ((org-agenda-overriding-header "\n————————————— PENDING SCHEDULED TASKS ——————————————")
+         		(org-agenda-block-separator nil)
+         		(org-agenda-time-grid nil)
+         		(org-agenda-start-on-weekday nil)
+         		(org-agenda-span 1)
+         		(org-agenda-show-all-dates nil)
+         		(org-scheduled-past-days 365)
+         		(org-scheduled-delay-days 1)
+         		(org-agenda-entry-types '(:scheduled))
+         		(org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done))
+         		(org-agenda-skip-function '(org-agenda-skip-entry-if 'regexp "ROUTINE"))
+         		(org-agenda-day-face-function (lambda (date) 'org-agenda-date))
+         		(org-agenda-format-date "")))
+      (agenda "" ((org-agenda-overriding-header "\n—————————————————— TODAY'S AGENDA ——————————————————\n")
+         		(org-agenda-block-separator nil)
+         		(org-agenda-span 1)
+         		(org-deadline-warning-days 0)
+         		(org-scheduled-past-days 0)
+         		(org-agenda-skip-function '(org-agenda-skip-entry-if 'regexp "ROUTINE"))
+         		(org-agenda-day-face-function (lambda (date) 'org-agenda-date))))
+      (agenda "" ((org-agenda-overriding-header "\n————————————————— NEXT THREE DAYS ——————————————————\n")
+         		(org-agenda-block-separator nil)
+         		(org-agenda-start-on-weekday nil)
+         		(org-agenda-start-day nil)
+         		(org-agenda-start-day "+1d")
+         		(org-agenda-span 3)
+         		(org-deadline-warning-days 0)
+         		(org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done))))
+      (agenda "" ((org-agenda-overriding-header "\n———————————— UPCOMING DEADLINES (+14D) —————————————\n")
+         		(org-agenda-block-separator nil)
+         		(org-agenda-time-grid nil)
+         		(org-agenda-start-on-weekday nil)
+         		(org-agenda-start-day "+4d")
+         		(org-agenda-span 14)
+         		(org-agenda-show-all-dates nil)
+         		(org-agenda-warning-days 0)
+         		(org-agenda-entry-types '(:deadline))
+         		(org-agenda-skip-function '(org-agenda-skip-entry-if 'todo 'done)))))
+    "Custom agenda for use in `org-agenda-custom-commands'.")
+
+  (setq org-agenda-custom-commands
+        `(("A" "Daily agenda and top priority tasks"
+         	 ,daley-org-custom-daily-agenda)))
+
+  (custom-set-faces
+   '(org-agenda-structure ((t (:family "Aporetic Serif Mono" :height 1.5 :weight bold)))))
 
   (provide 'daley-emacs-org)
 #+end_src
@@ -619,7 +692,6 @@ my configs for =denote.el= a file-naming scheme package created by prot, to faci
 #+end_src
 
 
-
 * TODO work in progress
 ** =init.el= - =no-littering= package & clean up =~/.emacs.d/=
 :PROPERTIES:
@@ -736,10 +808,10 @@ initialize the =no-littering= package to remove any unnecessary clutter inside t
                org-roam-capture)
     :init
     (setq org-roam-directory "~/notes/roam"
-  	    org-roam-database-connector 'sqlite-builtin
-  	    org-roam-completion-everywhere t
-  	    org-roam-db-location (expand-file-name "org-roam.db" "~/notes/roam")
-  	    org-roam-v2-ack t)
+  	org-roam-database-connector 'sqlite-builtin
+  	org-roam-completion-everywhere t
+  	org-roam-db-location (expand-file-name "org-roam.db" "~/notes/roam")
+  	org-roam-v2-ack t)
     :config
     (setq org-roam-db-update-on-save t))
 #+end_src
@@ -771,11 +843,6 @@ initialize the =no-littering= package to remove any unnecessary clutter inside t
     :init
     ;; Append to the hook late (priority 90) to ensure it executes after native styling
     (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
-
-  (defun my/org-hide-follow-background ()
-    (set-face-attribute 'org-hide nil
-  		              :foreground (face-background 'default nil t)))
-  (add-hook 'nano-refresh-theme-hook #'my/org-hide-follow-background)
 #+end_src
 
 ** =nano= library
@@ -828,9 +895,9 @@ here i customize the default layout that comes with =nano-emacs= and tweak it to
   ;; achieve native rounded corners, background blur and the padding all around. 
   (setq default-frame-alist
         (append (list
-  	           '(undecorated-round . t)
-  	           '(ns-background-blur . 40)
-  	           '(ns-alpha-elements ns-alpha-all)
+  	       '(undecorated-round . t)
+  	       '(ns-background-blur . 40)
+  	       '(ns-alpha-elements ns-alpha-all)
                  '(vertical-scroll-bars . nil)
                  '(internal-border-width . 24)
                  '(left-fringe . 1)
@@ -842,9 +909,9 @@ here i customize the default layout that comes with =nano-emacs= and tweak it to
 
   ;; remove startup clutter
   (setq ;; inhibit-startup-screen t
-        ;; inhibit-startup-message t
-        ;; inhibit-startup-echo-area-message t
-        initial-scratch-message nil)
+   ;; inhibit-startup-message t
+   ;; inhibit-startup-echo-area-message t
+   initial-scratch-message nil)
 
   ;; underline sits at next decent
   (setq x-underline-at-descent-line t) 
@@ -1330,9 +1397,9 @@ Notable exceptions:
 
   (defcustom nano-theme-var nil
     "Variable which sets the default startup theme as light or dark.
-    Also allows for toggling of the themes. Is set to 'light' by
-    'nano-theme-light' and 'dark' by 'nano-theme-dark'.
-    Defaults to nil."
+      Also allows for toggling of the themes. Is set to 'light' by
+      'nano-theme-light' and 'dark' by 'nano-theme-dark'.
+      Defaults to nil."
     :group 'nano
     :type 'string)
 
@@ -1435,62 +1502,62 @@ Notable exceptions:
     (set-face 'font-lock-keyword-face                  'nano-face-salient))
 
 
-(defun nano-theme--mode-line ()
-  "Derive mode-line and header-line faces from nano-faces."
-  (set-face-attribute 'mode-line nil
-                      :height 0.1
-                      :foreground (if (display-graphic-p)
-                                      (face-background 'nano-face-default)
-                                    (face-foreground 'nano-face-default))
-                      :background (face-background 'nano-face-default)
-                      :underline  (if (display-graphic-p)
-                                      (face-background 'nano-face-subtle)
-                                    t)
-                      :overline nil
-                      :box nil)
-  (set-face-attribute 'mode-line-inactive nil
-                      :height 0.1
-                      :foreground (if (display-graphic-p)
-                                      (face-background 'nano-face-default)
-                                    (face-foreground 'nano-face-default))
-                      :background (face-background 'nano-face-default)
-                      :underline (if (display-graphic-p)
-                                     (face-background 'nano-face-subtle)
-                                   t)
-                      :overline nil
-                      :inherit nil
-                      :box nil)
-  
-  ;;(when (display-graphic-p)
-  (set-face-attribute 'header-line nil
-                       :weight 'light
-                       :foreground (face-foreground 'nano-face-default)
-                       :background (face-background 'nano-face-default)
+  (defun nano-theme--mode-line ()
+    "Derive mode-line and header-line faces from nano-faces."
+    (set-face-attribute 'mode-line nil
+                        :height 0.1
+                        :foreground (if (display-graphic-p)
+                                        (face-background 'nano-face-default)
+                                      (face-foreground 'nano-face-default))
+                        :background (face-background 'nano-face-default)
+                        :underline  (if (display-graphic-p)
+                                        (face-background 'nano-face-subtle)
+                                      t)
+                        :overline nil
+                        :box nil)
+    (set-face-attribute 'mode-line-inactive nil
+                        :height 0.1
+                        :foreground (if (display-graphic-p)
+                                        (face-background 'nano-face-default)
+                                      (face-foreground 'nano-face-default))
+                        :background (face-background 'nano-face-default)
+                        :underline (if (display-graphic-p)
+                                       (face-background 'nano-face-subtle)
+                                     t)
+                        :overline nil
+                        :inherit nil
+                        :box nil)
+    
+    ;;(when (display-graphic-p)
+    (set-face-attribute 'header-line nil
+                        :weight 'light
+                        :foreground (face-foreground 'nano-face-default)
+                        :background (face-background 'nano-face-default)
 
-                       :overline nil
-                       :underline nil
-                       :box nil
-                       :box `(:line-width 1
-                                          :color ,(face-background 'nano-face-default)
-                                          :style nil)
-                       :inherit nil)
+                        :overline nil
+                        :underline nil
+                        :box nil
+                        :box `(:line-width 1
+                                           :color ,(face-background 'nano-face-default)
+                                           :style nil)
+                        :inherit nil)
 
-  ;; (when (not (display-graphic-p))
-  ;;   (set-face-attribute 'header-line nil
-  ;;                    :weight 'light
-  ;;                       :foreground (face-foreground 'nano-face-default)
-  ;;                       :background (face-background 'nano-face-subtle)
-  ;;                       :inverse-video t
-  ;;                       :overline nil
-  ;;                       :underline nil
-  ;;                       :box nil
-  ;;                            :inherit nil))
+    ;; (when (not (display-graphic-p))
+    ;;   (set-face-attribute 'header-line nil
+    ;;                    :weight 'light
+    ;;                       :foreground (face-foreground 'nano-face-default)
+    ;;                       :background (face-background 'nano-face-subtle)
+    ;;                       :inverse-video t
+    ;;                       :overline nil
+    ;;                       :underline nil
+    ;;                       :box nil
+    ;;                            :inherit nil))
 
-  ;; (set-face-attribute 'internal-border nil
-  ;;                     :background (face-foreground 'nano-face-default))
+    ;; (set-face-attribute 'internal-border nil
+    ;;                     :background (face-foreground 'nano-face-default))
 
-  (set-face-attribute 'internal-border nil
-                       :background (face-background 'nano-face-default)))
+    (set-face-attribute 'internal-border nil
+                        :background (face-background 'nano-face-default)))
 
 
   (defun nano-theme--minibuffer ()
@@ -1645,8 +1712,8 @@ Notable exceptions:
     ;; function
     (defun package-make-button (text &rest properties)
       "Insert button labeled TEXT with button PROPERTIES at point.
-    PROPERTIES are passed to `insert-text-button', for which this
-    function is a convenience wrapper used by `describe-package-1'."
+      PROPERTIES are passed to `insert-text-button', for which this
+      function is a convenience wrapper used by `describe-package-1'."
       (let ((button-text (if (display-graphic-p)
                              text (concat "[" text "]")))
             (button-face (if (display-graphic-p)
@@ -2083,7 +2150,7 @@ Notable exceptions:
 
   (defun nano-refresh-theme ()
     "Convenience function which refreshes the nano-theme.
-    Calls \(nano-faces\) and \(nano-theme\) sequentially."
+      Calls \(nano-faces\) and \(nano-theme\) sequentially."
     (interactive)
     (progn
       (nano-faces)
@@ -2092,7 +2159,7 @@ Notable exceptions:
 
   (defun nano-toggle-theme ()
     "Function to interactively toggle between light and dark nano themes.
-    Requires both to be loaded in order to work."
+      Requires both to be loaded in order to work."
     (interactive)
     (cond ((string= nano-theme-var "light")
            (nano-theme-set-dark))
@@ -2276,17 +2343,17 @@ sets up how nano will handle various saving of sessions & history
   (setq savehist-additional-variables
         '(kill-ring
           command-history
-  	    set-variable-value-history
-  	    custom-variable-history   
-  	    query-replace-history     
-  	    read-expression-history   
-  	    minibuffer-history        
-  	    read-char-history         
-  	    face-name-history         
+  	set-variable-value-history
+  	custom-variable-history   
+  	query-replace-history     
+  	read-expression-history   
+  	minibuffer-history        
+  	read-char-history         
+  	face-name-history         
           bookmark-history          
           ivy-history               
-  	    counsel-M-x-history       
-  	    file-name-history         
+  	counsel-M-x-history       
+  	file-name-history         
           counsel-minibuffer-history))
   (setq history-length 250)
   (setq kill-ring-max 25)
@@ -2365,33 +2432,33 @@ Nano mode line format:
            (window        (get-buffer-window (current-buffer)))
            (space-up       +0.15)
            (space-down     -0.20)
-  	     (prefix (cond ((string= status "RO")
-  			            (propertize (if (window-dedicated-p)" -- " " RO ")
+  	 (prefix (cond ((string= status "RO")
+  			(propertize (if (window-dedicated-p)" -- " " RO ")
                                       'face 'nano-face-header-popout))
                          ((string= status "**")
-  			            (propertize (if (window-dedicated-p)" -- " " ** ")
+  			(propertize (if (window-dedicated-p)" -- " " ** ")
                                       'face 'nano-face-header-critical))
                          ((string= status "RW")
-  			            (propertize (if (window-dedicated-p)" -- " " RW ")
+  			(propertize (if (window-dedicated-p)" -- " " RW ")
                                       'face 'nano-face-header-faded))
                          (t (propertize status 'face 'nano-face-header-popout))))
            (left (concat
                   (propertize " "  'face 'nano-face-header-default
-  			                'display `(raise ,space-up))
+  			    'display `(raise ,space-up))
                   (propertize name 'face 'nano-face-header-strong)
                   (propertize " "  'face 'nano-face-header-default
-  			                'display `(raise ,space-down))
-  		        (propertize primary 'face 'nano-face-header-default)))
+  			    'display `(raise ,space-down))
+  		(propertize primary 'face 'nano-face-header-default)))
            (right (concat secondary " "))
            (available-width (- (window-total-width)
-  			                 (length prefix) (length left) (length right)
-  			                 (/ (window-right-divider-width) char-width)))
-  	     (available-width (max 1 available-width)))
+  			     (length prefix) (length left) (length right)
+  			     (/ (window-right-divider-width) char-width)))
+  	 (available-width (max 1 available-width)))
       (concat prefix
-  	        left
-  	        (propertize (make-string available-width ?\ )
+  	    left
+  	    (propertize (make-string available-width ?\ )
                           'face 'nano-face-header-default)
-  	        (propertize right 'face `(:inherit nano-face-header-default
+  	    (propertize right 'face `(:inherit nano-face-header-default
                                                  :foreground ,nano-color-faded)))))
 
   ;; ---------------------------------------------------------------------
@@ -2499,26 +2566,26 @@ Nano mode line format:
   (defun nano-modeline-info-breadcrumbs ()
     (let ((nodes (Info-toc-nodes Info-current-file))
           (cnode Info-current-node)
-  	    (node Info-current-node)
+  	(node Info-current-node)
           (crumbs ())
           (depth Info-breadcrumbs-depth)
-  	    line)
+  	line)
       (while  (> depth 0)
         (setq node (nth 1 (assoc node nodes)))
         (if node (push node crumbs))
         (setq depth (1- depth)))
       (setq crumbs (cons "Top" (if (member (pop crumbs) '(nil "Top"))
-  			                     crumbs (cons nil crumbs))))
+  			         crumbs (cons nil crumbs))))
       (forward-line 1)
       (dolist (node crumbs)
         (let ((text
-  	         (if (not (equal node "Top")) node
-  	           (format "%s"
-  		               (if (stringp Info-current-file)
-  			               (file-name-sans-extension
-  			                (file-name-nondirectory Info-current-file))
-  			             Info-current-file)))))
-  	    (setq line (concat line (if (null line) "" " > ")
+  	     (if (not (equal node "Top")) node
+  	       (format "%s"
+  		       (if (stringp Info-current-file)
+  			   (file-name-sans-extension
+  			    (file-name-nondirectory Info-current-file))
+  			 Info-current-file)))))
+  	(setq line (concat line (if (null line) "" " > ")
                              (if (null node) "..." text)))))
       (if (and cnode (not (equal cnode "Top")))
           (setq line (concat line (if (null line) "" " > ") cnode)))
@@ -2655,20 +2722,20 @@ Nano mode line format:
 
   (defun nano-modeline-docview-mode ()
     (let ((buffer-name (format-mode-line "%b"))
-  	    (mode-name   (nano-mode-name))
-  	    (branch      (vc-branch))
-  	    (page-number (concat
-  		              (number-to-string (doc-view-current-page)) "/"
-  		              (or (ignore-errors
-  			                (number-to-string (doc-view-last-page-number)))
-  			              "???"))))
+  	(mode-name   (nano-mode-name))
+  	(branch      (vc-branch))
+  	(page-number (concat
+  		      (number-to-string (doc-view-current-page)) "/"
+  		      (or (ignore-errors
+  			    (number-to-string (doc-view-last-page-number)))
+  			  "???"))))
       (nano-modeline-compose
        (nano-modeline-status)
        buffer-name
        (concat "(" mode-name
-  	         (if branch (concat ", "
-  				                (propertize branch 'face 'italic)))
-  	         ")" )
+  	     (if branch (concat ", "
+  				(propertize branch 'face 'italic)))
+  	     ")" )
        page-number)))
 
   ;; ---------------------------------------------------------------------
@@ -2677,20 +2744,20 @@ Nano mode line format:
 
   (defun nano-modeline-pdf-view-mode ()
     (let ((buffer-name (format-mode-line "%b"))
-  	    (mode-name   (nano-mode-name))
-  	    (branch      (vc-branch))
-  	    (page-number (concat
-  		              (number-to-string (pdf-view-current-page)) "/"
-  		              (or (ignore-errors
-  			                (number-to-string (pdf-cache-number-of-pages)))
-  			              "???"))))
+  	(mode-name   (nano-mode-name))
+  	(branch      (vc-branch))
+  	(page-number (concat
+  		      (number-to-string (pdf-view-current-page)) "/"
+  		      (or (ignore-errors
+  			    (number-to-string (pdf-cache-number-of-pages)))
+  			  "???"))))
       (nano-modeline-compose
        "RW"
        buffer-name
        (concat "(" mode-name
-  	         (if branch (concat ", "
-  				                (propertize branch 'face 'italic)))
-  	         ")" )
+  	     (if branch (concat ", "
+  				(propertize branch 'face 'italic)))
+  	     ")" )
        page-number)))
 
   ;; ---------------------------------------------------------------------
@@ -2793,8 +2860,8 @@ Nano mode line format:
                            ;;         ((nano-modeline-mu4e-view-mode-p)       (nano-modeline-mu4e-view-mode))
                            ((nano-modeline-text-mode-p)            (nano-modeline-default-mode))
                            ((nano-modeline-pdf-view-mode-p)        (nano-modeline-pdf-view-mode))
-  	                     ((nano-modeline-docview-mode-p)         (nano-modeline-docview-mode))
-  	                     ((nano-modeline-completion-list-mode-p) (nano-modeline-completion-list-mode))
+  	                 ((nano-modeline-docview-mode-p)         (nano-modeline-docview-mode))
+  	                 ((nano-modeline-completion-list-mode-p) (nano-modeline-completion-list-mode))
                            ((nano-modeline-nano-help-mode-p)       (nano-modeline-nano-help-mode))
                            (t                                      (nano-modeline-default-mode)))))))
 
@@ -2804,7 +2871,7 @@ Nano mode line format:
   below or a buffer local variable 'no-mode-line'."
     (dolist (window (window-list))
       (with-selected-window window
-  	  (with-current-buffer (window-buffer window)
+        (with-current-buffer (window-buffer window)
           (if (or (not (boundp 'no-mode-line)) (not no-mode-line))
               (set-window-parameter window 'mode-line-format
                                     (cond ((not mode-line-format) 'none)
@@ -2822,4 +2889,5 @@ Nano mode line format:
 
   (provide 'nano-modeline)
 #+end_src
+
 
