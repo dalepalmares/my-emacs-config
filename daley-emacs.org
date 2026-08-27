@@ -33,14 +33,6 @@ the /frame-resize-pixelwise/ & /frame-inhibit-implied-resize/ settings are there
 #+end_src
 
 ** =early-init.el= - macos opacity window
-:LOGBOOK:
-- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:21]
-- State "CANCEL"     from "DONE"       [2026-08-27 Thu 01:21]
-- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:21]
-- State "CANCEL"     from "TODO"       [2026-08-27 Thu 01:20]
-- State "DONE"       from "CANCEL"     [2026-08-27 Thu 01:20]
-- State "CANCEL"     from "TODO"       [2026-08-27 Thu 01:20]
-:END:
 
 applying macos glass look for the backgroud, purely for aesthetic reasons.
 
@@ -60,7 +52,6 @@ applying macos glass look for the backgroud, purely for aesthetic reasons.
     (when (display-graphic-p)
       (daley/apply-frame-transparency)))
 #+end_src
-
 
 ** =early-init.el= - ui stuffs
 
@@ -381,6 +372,7 @@ this is where i load all the individual modules and parts of my emacs config.
   (require 'daley-emacs-essentials)
   (require 'daley-emacs-modeline)
   (require 'daley-emacs-org)
+  (require 'daley-emacs-git)
 
   ;;; require all the .el files from daley-lisps/
   (require 'daley-meow)
@@ -466,8 +458,18 @@ configs for my org setup. i hope to develop this over time. starting simple at f
   (provide 'daley-emacs-org)
 #+end_src
 
-#+RESULTS:
-: daley-emacs-org
+** =daley-emacs-git= module
+
+configs for the ~magit~ package.
+
+#+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-git.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (use-package magit
+    :ensure t)
+
+  (provide 'daley-emacs-git)
+#+end_src
 
 
 * lisps used in my emacs config
