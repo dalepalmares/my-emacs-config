@@ -26,7 +26,7 @@
   (setq org-bookmark-names-plist nil)
   
   (setq org-todo-keywords
-        '((sequence "TODO(t)" "WAIT(w!)" "|" "CANCEL(c!)" "DONE(d!)"))))
+        '((sequence "TODO(t)" "WAIT(w)" "|" "CANCEL(c!)" "DONE(d!)"))))
 
 (defun daley-org-agenda-include-priority-no-timestamp ()
   "Return nil if heading has a priority but no timestamp.
@@ -88,8 +88,15 @@
       `(("A" "Daily agenda and top priority tasks"
        	 ,daley-org-custom-daily-agenda)))
 
-; set org agenda headers to be bigger
+;; remove file names in org agenda view
+(setq org-agenda-prefix-format
+    '((agenda  . " %i %-12t% s")   ; Removed %c
+      (todo    . " %i ")           ; Removed %c
+      (tags    . " %i ")           ; Removed %c
+      (search  . " %i ")))         ; Removed %c
+
+;; set org agenda headers to be bigger
 (custom-set-faces
- '(org-agenda-structure ((t (:family "Aporetic Serif Mono" :height 1.5 :weight bold)))))
+ '(org-agenda-structure ((t (:family "Iosevka Charon Mono" :height 1.6 :weight bold)))))
 
 (provide 'daley-emacs-org)

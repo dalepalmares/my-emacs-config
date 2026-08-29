@@ -144,7 +144,7 @@ set up lexical binding
   ;; -*- lexical-binding: t; -*-
 #+end_src
 
-** =init.el= - disable backups & lockfiles
+** =init.el= - disable backups & lockfiles. redirect auto-save files
 
 lockfiles are files that emacs lock down so that they are not modified by other programs.
 backups are backups. i don't need emacs to manage that, i'll manage that externally.
@@ -153,6 +153,10 @@ backups are backups. i don't need emacs to manage that, i'll manage that externa
   (setq make-backup-files nil)
   (setq backup-inhibited nil)
   (setq create-lockfiles nil)
+
+  ;; redirect auto-save files to this directory
+  (setq auto-save-file-name-transforms
+        '((".*" "~/.emacs.d/auto-save-list" t)))
 #+end_src
 
 ** =init.el= - send ~custom-file~ to the abyss
@@ -245,23 +249,37 @@ i am basically trying to be more organized by separating the code i wrote (=dale
 i am using the aporetic font family from prot here.
 
 #+begin_src emacs-lisp :tangle "init.el"
-  (let ((mono-spaced-font "Aporetic Sans Mono")
-        (proportionately-spaced-font "Aporetic Sans"))
+  (let ((mono-spaced-font "Iosevka Charon Mono")
+        (proportionately-spaced-font "Iosevka Charon"))
     (cond
      ((eq system-type 'darwin)
-      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
-      (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))
+      (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 240)
+      (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
+      (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))
      
      ((eq system-type 'gnu/linux)
-      (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
-      (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))))
-    
-  (setq-default line-spacing 0.2) ; set the default line height
+      (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 160)
+      (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
+      (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
 
-  ;; activate variable-pitch-mode by default
-  (add-hook 'text-mode-hook #'variable-pitch-mode)
+  (setq-default line-spacing 0.3) ; set the default line height
+
+  ;; set variable-pitch-mode to be on by default for org & txt files
+  (add-hook 'org-mode-hook 'variable-pitch-mode)
+  (add-hook 'text-mode-hook 'variable-pitch-mode)
+
+  (custom-theme-set-faces
+   'user
+   '(org-block ((t (:inherit fixed-pitch))))
+   '(org-code ((t (:inherit (shadow fixed-pitch)))))
+   '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+   '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+   '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+   '(org-property-value ((t (:inherit fixed-pitch))) t)
+   '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+   '(org-table ((t (:inherit fixed-pitch))))
+   '(org-tag ((t (:inherit (shadow fixed-pitch)))))
+   '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 #+end_src
 
 ** =init.el= - set up theme
@@ -426,9 +444,9 @@ the starting point of my own custom modeline
 
   (setq-default mode-line-format
   	      '("%e"
-  		" %* | %b " ; this is the info shown on the left hand side of the modeline
+  		" %* | %b | %m mode " ; this is the info shown on the left hand side of the modeline
   		mode-line-format-right-align ; push all items below this line to the most right hand side of the modeline
-  		daley-modeline-misc-info)) ; show date & time (which is push to the farthest right as a result of the line directly above)
+  		daley-modeline-misc-info)) ; show date & time (which is pushed to the farthest right as a result of the line directly above)
 
   (provide 'daley-emacs-modeline)
 #+end_src
@@ -466,7 +484,7 @@ configs for my org setup. i hope to develop this over time. starting simple at f
     (setq org-bookmark-names-plist nil)
     
     (setq org-todo-keywords
-          '((sequence "TODO(t)" "WAIT(w!)" "|" "CANCEL(c!)" "DONE(d!)"))))
+          '((sequence "TODO(t)" "WAIT(w)" "|" "CANCEL(c!)" "DONE(d!)"))))
 
   (defun daley-org-agenda-include-priority-no-timestamp ()
     "Return nil if heading has a priority but no timestamp.
@@ -528,9 +546,16 @@ configs for my org setup. i hope to develop this over time. starting simple at f
         `(("A" "Daily agenda and top priority tasks"
          	 ,daley-org-custom-daily-agenda)))
 
-  ; set org agenda headers to be bigger
+  ;; remove file names in org agenda view
+  (setq org-agenda-prefix-format
+      '((agenda  . " %i %-12t% s")   ; Removed %c
+        (todo    . " %i ")           ; Removed %c
+        (tags    . " %i ")           ; Removed %c
+        (search  . " %i ")))         ; Removed %c
+
+  ;; set org agenda headers to be bigger
   (custom-set-faces
-   '(org-agenda-structure ((t (:family "Aporetic Serif Mono" :height 1.5 :weight bold)))))
+   '(org-agenda-structure ((t (:family "Iosevka Charon Mono" :height 1.6 :weight bold)))))
 
   (provide 'daley-emacs-org)
 #+end_src
@@ -677,20 +702,25 @@ my configs for prot's simple =spacious-padding.el= package. which added space al
 my configs for =denote.el= a file-naming scheme package created by prot, to facilitate better note-taking and organization.
 
 #+begin_src emacs-lisp :tangle "daley-lisp/daley-denote.el" :mkdirp yes
-  ;; -*- lexical-binding: t; -*-
+   ;; -*- lexical-binding: t; -*-
 
-  (use-package denote
-    :ensure t
-    :hook (dired-mode . denote-dired-mode)
-    :bind
-    (("C-c n n" . denote)
-     ("C-c n r" . denote-rename-file)
-     ("C-c n l" . denote-link)
-     ("C-c n b" . denote-backlinks)
-     ("C-c n d" . denote-dired)
-     ("C-c n g" . denote-grep))
-    :config
-    (setq denote-directory (expand-file-name "~/Notes/")))
+   (use-package denote
+     :ensure t
+     :hook (dired-mode . denote-dired-mode)
+     :bind
+     (("C-c n n" . denote)
+      ("C-c n r" . denote-rename-file)
+      ("C-c n l" . denote-link-or-create)
+      ("C-c n b" . denote-backlinks)
+      ("C-c n d" . denote-dired)
+      ("C-c n g" . denote-grep))
+     :config
+     (setq denote-directory (expand-file-name "~/Notes/"))
+     (setq denote-known-keywords '("projects" "areas" "resources" "archives")) ; taken from PARA framework.
+     (setq denote-file-type "text")
+     (setq denote-sort-keywords nil))
+
+   (add-hook 'text-mode-hook #'denote-fontify-links-mode)
 
   (provide 'daley-denote)
 #+end_src

@@ -4,6 +4,10 @@
 (setq backup-inhibited nil)
 (setq create-lockfiles nil)
 
+;; redirect auto-save files to this directory
+(setq auto-save-file-name-transforms
+      '((".*" "~/.emacs.d/auto-save-list" t)))
+
 (setq custom-file (make-temp-file "emacs-custom-"))
 
 (setq initial-buffer-choice t)
@@ -53,23 +57,37 @@
     (keyboard-quit))))
 (define-key global-map (kbd "C-g") #'daley/keyboard-quit-dwim)
 
-(let ((mono-spaced-font "Aporetic Sans Mono")
-      (proportionately-spaced-font "Aporetic Sans"))
+(let ((mono-spaced-font "Iosevka Charon Mono")
+      (proportionately-spaced-font "Iosevka Charon"))
   (cond
    ((eq system-type 'darwin)
-    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 240)
-    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))
+    (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 240)
+    (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))
    
    ((eq system-type 'gnu/linux)
-    (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 160)
-    (set-face-attribute 'fixed-pitch nil :family "Aporetic Sans Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Aporetic Sans" :height 1.0))))
-  
-(setq-default line-spacing 0.2) ; set the default line height
+    (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 160)
+    (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
 
-;; activate variable-pitch-mode by default
-(add-hook 'text-mode-hook #'variable-pitch-mode)
+(setq-default line-spacing 0.3) ; set the default line height
+
+;; set variable-pitch-mode to be on by default for org & txt files
+(add-hook 'org-mode-hook 'variable-pitch-mode)
+(add-hook 'text-mode-hook 'variable-pitch-mode)
+
+(custom-theme-set-faces
+ 'user
+ '(org-block ((t (:inherit fixed-pitch))))
+ '(org-code ((t (:inherit (shadow fixed-pitch)))))
+ '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+ '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+ '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-property-value ((t (:inherit fixed-pitch))) t)
+ '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-table ((t (:inherit fixed-pitch))))
+ '(org-tag ((t (:inherit (shadow fixed-pitch)))))
+ '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 
 (use-package doric-themes
   :ensure t
