@@ -57,28 +57,24 @@
     (keyboard-quit))))
 (define-key global-map (kbd "C-g") #'daley/keyboard-quit-dwim)
 
-(defun daley/set-mixed-fonts-for-notes ()
-  "Set default font to proportional and front matter to monospace."
+(defun daley/set-mixed-fonts ()
+  "Set default font to proportional and front matter and org headline properties to monospace."
   (interactive)
-  ;; 1. Set the default buffer face to variable-pitch (proportional)
-  (buffer-face-set 'variable-pitch)
+  (buffer-face-set 'variable-pitch) ; set the default buffer face to variable-pitch (proportional)
   
-  ;; 2. Define regex patterns for BOTH Org and Plain Text/Denote formats
+  ;; define regex patterns
   (let ((mixed-font-keywords
-         '(;; Org Mode Front Matter (e.g., #+title:)
-	   ("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t)
-           
-           ;; Plain Text / Denote Front Matter (e.g., title: ...)
-           ;; Matches lines starting with specific keys used by Denote
-           ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t)
-           
-           ;; YAML/Text Separators (lines with 3+ dashes)
-           ("^-\\{3,\\}$" 0 'fixed-pitch t))))
+         '(("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t) ; org-mode front matter
 
-    ;; 3. Add keywords to the current buffer
-    (font-lock-add-keywords nil mixed-font-keywords 'append))
+	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
+           
+           ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t) ; plain text front matter from denote
+           
+           ("^-\\{3,\\}$" 0 'fixed-pitch t)))) ; yaml text separator
 
-  ;; 4. Force a font refresh so it applies immediately
+    (font-lock-add-keywords nil mixed-font-keywords 'append)) ; add keywords to the current buffer
+
+  ;; force a font refresh so it applies immediately
   (if (fboundp 'font-lock-flush)
       (font-lock-flush)
     (with-no-warnings (font-lock-fontify-buffer))))
@@ -96,11 +92,11 @@
     (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
     (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
 
-(setq-default line-spacing 0.3) ; set the default line height
+;; (setq-default line-spacing 0.3) ; set the default line height
 
 ;; set variable-pitch-mode to be on by default for org & txt files
-(add-hook 'org-mode-hook #'daley/set-mixed-fonts-for-notes)
-(add-hook 'text-mode-hook #'daley/set-mixed-fonts-for-notes)
+(add-hook 'org-mode-hook #'daley/set-mixed-fonts)
+(add-hook 'text-mode-hook #'daley/set-mixed-fonts)
 
 (use-package doric-themes
   :ensure t
@@ -108,7 +104,7 @@
   :config
   (setq doric-themes-to-toggle '(doric-oak doric-obsidian))
 
-  (doric-themes-select 'doric-obsidian)
+  (doric-themes-select 'doric-oak)
 
   :bind
   (("<f5>" . doric-themes-toggle)

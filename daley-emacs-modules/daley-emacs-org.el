@@ -21,7 +21,6 @@
   (setq org-outline-path-complete-in-steps nil)
   (setq org-tags-column 0)
   (setq org-cycle-separator-lines 2)
-  (setq org-blank-before-new-entry '((heading . t) (plain-list-item . auto)))
   
   ;; disable org-capture & org-refile from generating bookmarks
   (setq org-capture-bookmark nil)

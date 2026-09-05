@@ -1,4 +1,4 @@
-#+title: my literate emacs config
+#+title:   my literate emacs config
 #+startup: content indent
 
 this is my attempt at a literate configuration setup with emacs. heavy inspiration is taken from prot's own literate config for emacs
@@ -258,35 +258,29 @@ i am basically trying to be more organized by separating the code i wrote (=dale
 
 ** =init.el= - use preffered fonts
 
-i am using the aporetic font family from prot here.
-
 #+begin_src emacs-lisp :tangle "init.el"
-  (defun daley/set-mixed-fonts-for-notes ()
-    "Set default font to proportional and front matter to monospace."
+  (defun daley/set-mixed-fonts ()
+    "Set default font to proportional and front matter and org headline properties to monospace."
     (interactive)
-    ;; 1. Set the default buffer face to variable-pitch (proportional)
-    (buffer-face-set 'variable-pitch)
+    (buffer-face-set 'variable-pitch) ; set the default buffer face to variable-pitch (proportional)
     
-    ;; 2. Define regex patterns for BOTH Org and Plain Text/Denote formats
+    ;; define regex patterns
     (let ((mixed-font-keywords
-           '(;; Org Mode Front Matter (e.g., #+title:)
-  	   ("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t)
-             
-             ;; Plain Text / Denote Front Matter (e.g., title: ...)
-             ;; Matches lines starting with specific keys used by Denote
-             ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t)
-             
-             ;; YAML/Text Separators (lines with 3+ dashes)
-             ("^-\\{3,\\}$" 0 'fixed-pitch t))))
+           '(("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t) ; org-mode front matter
 
-      ;; 3. Add keywords to the current buffer
-      (font-lock-add-keywords nil mixed-font-keywords 'append))
+  	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
+             
+             ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t) ; plain text front matter from denote
+             
+             ("^-\\{3,\\}$" 0 'fixed-pitch t)))) ; yaml text separator
 
-    ;; 4. Force a font refresh so it applies immediately
+      (font-lock-add-keywords nil mixed-font-keywords 'append)) ; add keywords to the current buffer
+
+    ;; force a font refresh so it applies immediately
     (if (fboundp 'font-lock-flush)
         (font-lock-flush)
       (with-no-warnings (font-lock-fontify-buffer))))
-
+ 
   (let ((mono-spaced-font "Iosevka Charon Mono")
         (proportionately-spaced-font "Iosevka Charon"))
     (cond
@@ -300,11 +294,11 @@ i am using the aporetic font family from prot here.
       (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
       (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
 
-  (setq-default line-spacing 0.3) ; set the default line height
+  ;; (setq-default line-spacing 0.3) ; set the default line height
 
   ;; set variable-pitch-mode to be on by default for org & txt files
-  (add-hook 'org-mode-hook #'daley/set-mixed-fonts-for-notes)
-  (add-hook 'text-mode-hook #'daley/set-mixed-fonts-for-notes)
+  (add-hook 'org-mode-hook #'daley/set-mixed-fonts)
+  (add-hook 'text-mode-hook #'daley/set-mixed-fonts)
 #+end_src
 
 ** =init.el= - set up theme
@@ -318,7 +312,7 @@ here i am using the doric themes package. also from prot
     :config
     (setq doric-themes-to-toggle '(doric-oak doric-obsidian))
 
-    (doric-themes-select 'doric-obsidian)
+    (doric-themes-select 'doric-oak)
 
     :bind
     (("<f5>" . doric-themes-toggle)
@@ -504,7 +498,6 @@ configs for my org setup. i hope to develop this over time. starting simple at f
     (setq org-outline-path-complete-in-steps nil)
     (setq org-tags-column 0)
     (setq org-cycle-separator-lines 2)
-    (setq org-blank-before-new-entry '((heading . t) (plain-list-item . auto)))
     
     ;; disable org-capture & org-refile from generating bookmarks
     (setq org-capture-bookmark nil)
