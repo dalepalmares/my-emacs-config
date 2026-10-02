@@ -185,6 +185,7 @@
 (require 'daley-emacs-modeline)
 (require 'daley-emacs-org)
 (require 'daley-emacs-git)
+(require 'daley-emacs-email)
 
 ;;; require all the .el files from daley-lisps/
 (require 'daley-meow)

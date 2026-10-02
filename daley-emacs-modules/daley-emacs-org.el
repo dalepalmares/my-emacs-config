@@ -20,7 +20,7 @@
   (setq org-refile-use-outline-path 'file)
   (setq org-outline-path-complete-in-steps nil)
   (setq org-tags-column 0)
-  (setq org-cycle-separator-lines 2)
+  (setq org-cycle-separator-lines 1)
   
   ;; disable org-capture & org-refile from generating bookmarks
   (setq org-capture-bookmark nil)
@@ -44,7 +44,7 @@
   `((tags-todo "*"
    	       ((org-agenda-overriding-header "IMPORTANT TASKS WITHOUT A DATE\n")
        		(org-agenda-skip-function #'daley-org-agenda-include-priority-no-timestamp)
-          	(org-agenda-block-separator nil)))
+          	(org-agenda-block-or nil)))
     (agenda "" ((org-agenda-overriding-header "\nPENDING SCHEDULED TASKS")
           	(org-agenda-block-separator nil)
           	(org-agenda-time-grid nil)
@@ -91,10 +91,10 @@
 
 ;; remove file names in org agenda view
 (setq org-agenda-prefix-format
-      '((agenda  . " %i %-12t% s")   ; Removed %c
-   	(todo    . " %i ")           ; Removed %c
-   	(tags    . " %i ")           ; Removed %c
-   	(search  . " %i ")))         ; Removed %c
+      '((agenda  . " %i %-12t% s")  
+   	(todo    . " %i ")           
+   	(tags    . " %i ")           
+   	(search  . " %i ")))       
 
 ;; set org agenda headers to be bigger
 (custom-set-faces

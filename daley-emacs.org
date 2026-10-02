@@ -37,7 +37,7 @@ the /frame-resize-pixelwise/ & /frame-inhibit-implied-resize/ settings are there
 
 applying macos glass look for the backgroud, purely for aesthetic reasons.
 
-#+begin_src emacs-lisp :tangle "early-init.el"
+#+begin_src emacs-lisp
   (when (eq system-type 'darwin)
     (defun daley/apply-frame-transparency (&optional frame)
       "Apply macOS transparency parameters to FRAME (defaults to selected frame)."
@@ -418,6 +418,7 @@ this is where i load all the individual modules and parts of my emacs config.
   (require 'daley-emacs-modeline)
   (require 'daley-emacs-org)
   (require 'daley-emacs-git)
+  (require 'daley-emacs-email)
 
   ;;; require all the .el files from daley-lisps/
   (require 'daley-meow)
@@ -497,7 +498,7 @@ configs for my org setup. i hope to develop this over time. starting simple at f
     (setq org-refile-use-outline-path 'file)
     (setq org-outline-path-complete-in-steps nil)
     (setq org-tags-column 0)
-    (setq org-cycle-separator-lines 2)
+    (setq org-cycle-separator-lines 1)
     
     ;; disable org-capture & org-refile from generating bookmarks
     (setq org-capture-bookmark nil)
@@ -521,7 +522,7 @@ configs for my org setup. i hope to develop this over time. starting simple at f
     `((tags-todo "*"
      	       ((org-agenda-overriding-header "IMPORTANT TASKS WITHOUT A DATE\n")
          		(org-agenda-skip-function #'daley-org-agenda-include-priority-no-timestamp)
-            	(org-agenda-block-separator nil)))
+            	(org-agenda-block-or nil)))
       (agenda "" ((org-agenda-overriding-header "\nPENDING SCHEDULED TASKS")
             	(org-agenda-block-separator nil)
             	(org-agenda-time-grid nil)
@@ -568,10 +569,10 @@ configs for my org setup. i hope to develop this over time. starting simple at f
 
   ;; remove file names in org agenda view
   (setq org-agenda-prefix-format
-        '((agenda  . " %i %-12t% s")   ; Removed %c
-     	(todo    . " %i ")           ; Removed %c
-     	(tags    . " %i ")           ; Removed %c
-     	(search  . " %i ")))         ; Removed %c
+        '((agenda  . " %i %-12t% s")  
+     	(todo    . " %i ")           
+     	(tags    . " %i ")           
+     	(search  . " %i ")))       
 
   ;; set org agenda headers to be bigger
   (custom-set-faces
@@ -592,6 +593,65 @@ configs for the ~magit~ package.
     :ensure t)
 
   (provide 'daley-emacs-git)
+#+end_src
+
+
+** =daley-emacs-email= module
+
+email config for mu4e
+
+#+begin_src emacs-lisp :tangle "daley-emacs-modules/daley-emacs-email.el" :mkdirp yes
+  ;; -*- lexical-binding: t; -*-
+
+  (add-to-list 'load-path "/opt/homebrew/share/emacs/site-lisp/mu4e")
+  (require 'mu4e)
+
+  (require 'smtpmail)
+
+  ;; Core SMTP Server Settings for Hostinger
+  (setq message-send-mail-function 'smtpmail-send-it
+        smtpmail-smtp-server "smtp.hostinger.com"
+        smtpmail-smtp-service 465
+        smtpmail-stream-type 'ssl)
+
+  (setq mu4e-maildir "~/Maildir"
+        ;; Tells mu4e to sync both channels simultaneously
+        mu4e-get-mail-command "mbsync hostinger"
+        mu4e-update-interval 300)
+
+  (setq mu4e-contexts
+        (list
+         ;; CONTEXT 1: hullo@dalepalmares.com
+         (make-mu4e-context
+          :name "hullo"
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-prefix-p "/hullo" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address  . "hullo@dalepalmares.com")
+                  (user-full-name     . "Dale Palmares")
+  		(smtpmail-smtp-user . "hullo@dalepalmares.com")
+  		(smtpmail-local-domain   . "dalepalmares.com")
+  		(mu4e-drafts-folder . "/hullo/Drafts")
+                  (mu4e-sent-folder   . "/hullo/Sent")
+                  (mu4e-trash-folder  . "/hullo/Trash")
+                  (mu4e-refile-folder . "/hullo/Archive")))
+
+         ;; CONTEXT 2: me@dalepalmares.com
+         (make-mu4e-context
+          :name "me"
+          :match-func (lambda (msg)
+                        (when msg
+                          (string-prefix-p "/me" (mu4e-message-field msg :maildir))))
+          :vars '((user-mail-address  . "me@dalepalmares.com")
+                  (user-full-name     . "Dale Palmares")
+  		(smtpmail-smtp-user . "me@dalepalmares.com")
+  		(smtpmail-local-domain   . "dalepalmares.com")
+  		(mu4e-drafts-folder . "/me/Drafts")
+                  (mu4e-sent-folder   . "/me/Sent")
+                  (mu4e-trash-folder  . "/me/Trash")
+                  (mu4e-refile-folder . "/me/Archive")))))
+
+  (provide 'daley-emacs-email)
 #+end_src
 
 
@@ -709,7 +769,7 @@ my configs for prot's simple =spacious-padding.el= package. which added space al
   	   :header-line-width 4
   	   :mode-line-width 6
              :tab-width 4
-             :right-divider-width 10
+             :right-divider-width 24
              :fringe-width 24))
     (setq spacious-padding-subtle-frame-lines t))
 

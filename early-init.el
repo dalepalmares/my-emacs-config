@@ -12,21 +12,6 @@
       inhibit-startup-echo-area-message t
       inhibit-startup-buffer-menu t)
 
-(when (eq system-type 'darwin)
-  (defun daley/apply-frame-transparency (&optional frame)
-    "Apply macOS transparency parameters to FRAME (defaults to selected frame)."
-    (with-selected-frame (or frame (selected-frame))
-      (set-frame-parameter nil 'alpha-background 0.7)
-      (set-frame-parameter nil 'ns-background-blur 30)
-      (set-frame-parameter nil 'ns-alpha-elements '(ns-alpha-all))))
-
-  (add-hook 'after-make-frame-functions #'daley/apply-frame-transparency)
-  (unless (daemonp)
-    (add-hook 'window-setup-hook #'daley/apply-frame-transparency))
-
-  (when (display-graphic-p)
-    (daley/apply-frame-transparency)))
-
 (menu-bar-mode -1)
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
