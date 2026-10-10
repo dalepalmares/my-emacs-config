@@ -268,7 +268,7 @@ i am basically trying to be more organized by separating the code i wrote (=dale
     (let ((mixed-font-keywords
            '(("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t) ; org-mode front matter
 
-  	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
+      	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
              
              ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t) ; plain text front matter from denote
              
@@ -280,19 +280,15 @@ i am basically trying to be more organized by separating the code i wrote (=dale
     (if (fboundp 'font-lock-flush)
         (font-lock-flush)
       (with-no-warnings (font-lock-fontify-buffer))))
- 
+
   (let ((mono-spaced-font "Iosevka Charon Mono")
-        (proportionately-spaced-font "Iosevka Charon"))
-    (cond
-     ((eq system-type 'darwin)
-      (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 240)
-      (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))
-     
-     ((eq system-type 'gnu/linux)
-      (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 160)
-      (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
-      (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
+        (proportionately-spaced-font "Iosevka Charon")
+        (default-height (cond ((eq system-type 'darwin) 240)
+                              ((eq system-type 'gnu/linux) 160)
+                              (t 120))))
+    (set-face-attribute 'default nil :family mono-spaced-font :height default-height)
+    (set-face-attribute 'fixed-pitch nil :family mono-spaced-font :height 1.0)
+    (set-face-attribute 'variable-pitch nil :family proportionately-spaced-font :height 1.0))
 
   ;; (setq-default line-spacing 0.3) ; set the default line height
 
@@ -456,9 +452,9 @@ the starting point of my own custom modeline
   ;; -*- lexical-binding: t; -*-
 
   (defvar-local daley-modeline-misc-info
-    '(:eval
-      (when (mode-line-window-selected-p)
-        mode-line-misc-info)))
+      '(:eval
+        (when (mode-line-window-selected-p)
+  	mode-line-misc-info)))
 
   (put 'daley-modeline-misc-info 'risky-local-variable t)
 
@@ -604,6 +600,7 @@ email config for mu4e
   ;; -*- lexical-binding: t; -*-
 
   (add-to-list 'load-path "/opt/homebrew/share/emacs/site-lisp/mu4e")
+  (add-to-list 'load-path "/usr/share/emacs/site-lisp/mu4e")
   (require 'mu4e)
 
   (require 'smtpmail)
@@ -762,18 +759,33 @@ my configs for prot's simple =spacious-padding.el= package. which added space al
   ;; -*- lexical-binding: t; -*-
 
   (use-package spacious-padding
-    :ensure t
-    :config
-    (setq spacious-padding-widths
-  	'( :internal-border-width 24
-  	   :header-line-width 4
-  	   :mode-line-width 6
+  :ensure t
+  :config
+  (setq spacious-padding-widths
+        (cond
+         ((eq system-type 'darwin)
+          '( :internal-border-width 24
+             :header-line-width 4
+             :mode-line-width 6
              :tab-width 4
              :right-divider-width 24
              :fringe-width 24))
-    (setq spacious-padding-subtle-frame-lines t))
-
-  (spacious-padding-mode 1)
+         ((eq system-type 'gnu/linux)
+          '( :internal-border-width 14
+             :header-line-width 4
+             :mode-line-width 4
+             :tab-width 4
+             :right-divider-width 14
+             :fringe-width 14))
+         (t
+          '( :internal-border-width 15
+             :header-line-width 4
+             :mode-line-width 4
+             :tab-width 4
+             :right-divider-width 15
+             :fringe-width 15))))
+  (setq spacious-padding-subtle-frame-lines t)
+  (spacious-padding-mode 1))
 
   (provide 'daley-spacious)
 #+end_src

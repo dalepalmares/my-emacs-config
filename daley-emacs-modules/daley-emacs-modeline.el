@@ -1,9 +1,9 @@
 ;; -*- lexical-binding: t; -*-
 
 (defvar-local daley-modeline-misc-info
-  '(:eval
-    (when (mode-line-window-selected-p)
-      mode-line-misc-info)))
+    '(:eval
+      (when (mode-line-window-selected-p)
+	mode-line-misc-info)))
 
 (put 'daley-modeline-misc-info 'risky-local-variable t)
 

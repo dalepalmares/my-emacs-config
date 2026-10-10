@@ -66,7 +66,7 @@
   (let ((mixed-font-keywords
          '(("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t) ; org-mode front matter
 
-	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
+    	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
            
            ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t) ; plain text front matter from denote
            
@@ -80,17 +80,13 @@
     (with-no-warnings (font-lock-fontify-buffer))))
 
 (let ((mono-spaced-font "Iosevka Charon Mono")
-      (proportionately-spaced-font "Iosevka Charon"))
-  (cond
-   ((eq system-type 'darwin)
-    (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 240)
-    (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))
-   
-   ((eq system-type 'gnu/linux)
-    (set-face-attribute 'default nil :family "Iosevka Charon Mono" :height 160)
-    (set-face-attribute 'fixed-pitch nil :family "Iosevka Charon Mono" :height 1.0)
-    (set-face-attribute 'variable-pitch nil :family "Iosevka Charon" :height 1.0))))
+      (proportionately-spaced-font "Iosevka Charon")
+      (default-height (cond ((eq system-type 'darwin) 240)
+                            ((eq system-type 'gnu/linux) 160)
+                            (t 120))))
+  (set-face-attribute 'default nil :family mono-spaced-font :height default-height)
+  (set-face-attribute 'fixed-pitch nil :family mono-spaced-font :height 1.0)
+  (set-face-attribute 'variable-pitch nil :family proportionately-spaced-font :height 1.0))
 
 ;; (setq-default line-spacing 0.3) ; set the default line height
 
