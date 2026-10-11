@@ -60,13 +60,23 @@
 (defun daley/set-mixed-fonts ()
   "Set default font to proportional and front matter and org headline properties to monospace."
   (interactive)
-  (buffer-face-set 'variable-pitch) ; set the default buffer face to variable-pitch (proportional)
-  
+  (variable-pitch-mode 1)
+
   ;; define regex patterns
   (let ((mixed-font-keywords
-         '(("^#\\+[a-zA-Z]+:.*$" 0 'fixed-pitch t) ; org-mode front matter
+         '(;; Explicitly split Org frontmatter into 3 groups to capture alignment spaces & keep colors
+           ("^\\(#\\+[a-zA-Z]+:\\)\\( *\\)\\(.*\\)$"
+            (1 'fixed-pitch prepend)   ; Monospace the keyword (e.g., #+title:)
+            (2 'fixed-pitch prepend)   ; Monospace the alignment spaces
+            (3 'fixed-pitch prepend))  ; Monospace the frontmatter value
 
-    	   ("^ *:\\(PROPERTIES\\|END\\|[^:\n]+\\):" 0 'fixed-pitch t) ; org headline properties
+           ;; Explicitly split property lines into 3 groups to capture and fix the padding spaces
+           ("^ *\\(:[^:\n]+:\\)\\( +\\)\\(.*\\)$"
+            (1 'fixed-pitch prepend)   ; Monospace the property key (retains theme color)
+            (2 'fixed-pitch prepend)   ; Monospace the alignment spaces (fixes layout)
+            (3 'fixed-pitch prepend))  ; Monospace the property value (retains theme color)
+
+           ("^ *:\\(PROPERTIES\\|END\\):" 0 'fixed-pitch prepend) ; Drawer boundaries
            
            ("^\\(title\\|date\\|tags\\|identifier\\|slug\\):.*$" 0 'fixed-pitch t) ; plain text front matter from denote
            

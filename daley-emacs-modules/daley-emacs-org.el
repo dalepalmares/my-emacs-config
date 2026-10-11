@@ -21,6 +21,7 @@
   (setq org-outline-path-complete-in-steps nil)
   (setq org-tags-column 0)
   (setq org-cycle-separator-lines 1)
+  (setq org-property-format "%-20s %s")
   
   ;; disable org-capture & org-refile from generating bookmarks
   (setq org-capture-bookmark nil)
